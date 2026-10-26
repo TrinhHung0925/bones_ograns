@@ -172,6 +172,26 @@ class Sfx {
     this.noiseBurst(ctx, { start: 0.12, dur: 0.6, gain: 0.08, type: 'bandpass', freq: 600, to: 3600, q: 2, attack: 0.15 });
   }
 
+  /** Bone joint cracking; [count] joints at once sound heavier. */
+  crack(count = 1) {
+    const ctx = this.live();
+    if (!ctx) return;
+    const n = Math.min(count, 4);
+    for (let i = 0; i < n; i++) {
+      const s = i * 0.035;
+      this.noiseBurst(ctx, { start: s, dur: 0.06, gain: 0.3, type: 'highpass', freq: 1800 + 600 * i, q: 0.9, attack: 0.001 });
+      this.tone(ctx, { type: 'triangle', freq: 320 - 40 * i, to: 120, start: s, dur: 0.09, gain: 0.18 });
+    }
+  }
+
+  /** Heavy ball hitting the structure. */
+  thud() {
+    const ctx = this.live();
+    if (!ctx) return;
+    this.tone(ctx, { freq: 110, to: 40, dur: 0.35, gain: 0.45 });
+    this.noiseBurst(ctx, { dur: 0.25, gain: 0.25, type: 'lowpass', freq: 900, to: 200, q: 0.7, attack: 0.002 });
+  }
+
   /** Faint tick when a dragged piece enters its slot's magnet range. */
   magnet() {
     const ctx = this.live();

@@ -14,6 +14,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { createPartMaterial, setDetail, setGlow } from './materials.js';
 import { Pipeline } from './postfx.js';
 import { sfx } from './sfx.js';
+import { createBuilder } from './builder.js';
 
 const SELECT_GLOW = new THREE.Color(0x4fb6ff);
 // Low because hundreds of ghosted layers stack up in front of the selection.
@@ -733,6 +734,7 @@ function pieceSpecs(list) {
 
 function startAssembly(list, options) {
   endAssembly(false);
+  builder.end(false);
   tour = null;
   const specs = pieceSpecs(list);
   const memberIds = new Set(specs.flatMap((s) => s.members.map((m) => m.id)));
@@ -1121,6 +1123,15 @@ function onPointerEnd(e) {
 canvas.addEventListener('pointerup', onPointerEnd, { capture: true });
 canvas.addEventListener('pointercancel', onPointerEnd, { capture: true });
 
+// ---- Creative bone builder (builder.js) -------------------------------------
+
+const builder = createBuilder({
+  scene, camera, controls, canvas, parts, pipeline, post, sfx, setGlow, applyVisual, animateCamera, rayFrom, raycaster,
+  burst,
+  requestRender: () => requestRender(),
+  resetCamera: () => animateCamera(HOME.target.clone(), HOME.position.clone()),
+});
+
 // ---- Commands from Flutter --------------------------------------------------
 
 const commands = {
@@ -1215,6 +1226,34 @@ const commands = {
   assemblyEnd() {
     endAssembly();
   },
+  // Creative bone builder (builder.js). Each command takes one object arg.
+  // builderStart {pieces: [{id, name, partIds}]} loads skeletal + joint first.
+  async builderStart({ pieces } = {}) {
+    endAssembly(false);
+    await Promise.all(['skeletal', 'joint'].map(loadSystem));
+    builder.start(pieces);
+  },
+  builderRotate({ axis, degrees } = {}) {
+    builder.rotate(axis, Number(degrees) || 0);
+  },
+  builderUndo() {
+    builder.undo();
+  },
+  builderReset() {
+    builder.reset();
+  },
+  builderAnatomical() {
+    builder.anatomical();
+  },
+  builderTest() {
+    builder.runTest();
+  },
+  builderEdit() {
+    builder.edit();
+  },
+  builderStop() {
+    builder.end();
+  },
   setSoundEnabled(enabled) {
     sfx.setEnabled(enabled !== false);
   },
@@ -1250,7 +1289,12 @@ window.anatomy = {
   },
   /** Internals for automated tests and tuning; not part of the bridge API. */
   debug: { THREE, renderer, scene, camera, controls, pipeline, parts, requestRender: () => requestRender(), sfxState: () => (sfx.ctx ? `${sfx.ctx.state} enabled=${sfx.enabled}` : 'none') },
-  /** Screen positions of assembly pieces and slots, for automated tests. */
+  /** Screen positions of builder pieces, for automated tests. */
+  builderDebug() {
+    scene.updateMatrixWorld();
+    return builder.debugPieces().map(({ id, pivot }) => ({ id, ...toScreen(pivot.position) }));
+  },
+    /** Screen positions of assembly pieces and slots, for automated tests. */
   assemblyDebug() {
     if (!assembly) return [];
     scene.updateMatrixWorld();
@@ -1286,7 +1330,7 @@ window.addEventListener('resize', () => {
 
 renderer.setAnimationLoop((now) => {
   // Bitwise OR so every step always runs.
-  const animating = stepTween(now) | stepTour(now) | stepAssembly(now);
+  const animating = stepTween(now) | stepTour(now) | stepAssembly(now) | builder.step(now);
   controls.update();
   if (animating || renderRequested) {
     renderRequested = false;

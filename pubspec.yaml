@@ -67,6 +67,7 @@ flutter:
     - assets/anatomy/
     - assets/anatomy/models/
     - assets/viewer/
+    - assets/viewer/vendor/cannon-es/
     - assets/viewer/vendor/three/
     - assets/viewer/vendor/three/addons/controls/
     - assets/viewer/vendor/three/addons/environments/

@@ -51,6 +51,8 @@ class _LearnHubViewState extends State<LearnHubView> {
                       _ProfileCard(controller: controller),
                       SizedBox(height: 20.h),
                       const SectionLabel(AppText.learnModes),
+                      _BuilderCard(best: controller.builderBest, onTap: controller.openBoneBuilder),
+                      SizedBox(height: 10.h),
                       _ModeCard(
                         icon: Icons.local_fire_department_rounded,
                         color: AppColors.accent,
@@ -295,6 +297,79 @@ class _ModeCard extends StatelessWidget {
             ),
             SizedBox(width: 8.w),
             trailing ?? Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 26.r),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Eye-catching entry of the creative bone builder, with a "MỚI" ribbon and
+/// the best score.
+class _BuilderCard extends StatelessWidget {
+  const _BuilderCard({required this.best, required this.onTap});
+
+  final int? best;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: AppText.builderTitle,
+      child: GameButton(
+        tone: GameTone.accent,
+        onTap: onTap,
+        radius: 20,
+        depth: 6,
+        padding: EdgeInsets.fromLTRB(12.w, 12.h, 12.w, 12.h),
+        child: Row(
+          children: [
+            Container(
+              width: 50.r,
+              height: 50.r,
+              decoration: const BoxDecoration(color: AppColors.onAccent, shape: BoxShape.circle),
+              child: Icon(Icons.construction_rounded, color: AppColors.accent, size: 28.r),
+            ),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          AppText.builderTitle,
+                          style: AppStyle.title(18, color: AppColors.onAccent),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      SizedBox(width: 6.w),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 6.r, vertical: 2.r),
+                        decoration: BoxDecoration(color: AppColors.wrong, borderRadius: BorderRadius.circular(6.r)),
+                        child: Text(AppText.builderNew, style: AppStyle.button(11)),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 2.h),
+                  Text(
+                    AppText.builderSubtitle,
+                    style: AppStyle.body(12, color: AppColors.onAccent.withValues(alpha: 0.8)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: 8.w),
+            StatPill(
+              icon: Icons.emoji_events_rounded,
+              iconColor: AppColors.accent,
+              background: AppColors.onAccent,
+              text: AppText.builderBestShort(best),
+            ),
           ],
         ),
       ),

@@ -64,8 +64,8 @@ export const SIM = {
 /** Joint strength: force (N) per m² of contact, torque (N·m) per m³ (area^1.5). */
 export const JOINT = {
   cell: 0.012,
-  sigmaF: 2.4e6,
-  sigmaT: 9.0e6,
+  sigmaF: 4e4,
+  sigmaT: 6e4,
   minArea: 4e-4,
   neighbourBonus: 1.6,
   /** Steps a joint must stay overloaded before it cracks (filters solver noise)… */
@@ -793,4 +793,124 @@ export function shapeSignature(pieces) {
     p.pos.forEach(mix);
   }
   return `v${BUILDER_VERSION}-${h.toString(16)}`;
+}
+
+// ---- Scene-facing API ----------------------------------------------------------
+
+const shapeCache = new WeakMap();
+
+/** Samples + boxes of a piece object (its meshes, relative to the object), cached. */
+export function shapeOf(object3d) {
+  let shape = shapeCache.get(object3d);
+  if (shape) return shape;
+  object3d.updateWorldMatrix(true, true);
+  const inv = object3d.matrixWorld.clone().invert();
+  const meshes = [];
+  object3d.traverse((o) => {
+    if (!o.isMesh) return;
+    const a = o.geometry.attributes.position;
+    const position = new Float32Array(a.count * 3);
+    for (let i = 0; i < a.count; i++) {
+      position[i * 3] = a.getX(i);
+      position[i * 3 + 1] = a.getY(i);
+      position[i * 3 + 2] = a.getZ(i);
+    }
+    meshes.push({ position, index: o.geometry.index?.array ?? null, matrix: inv.clone().multiply(o.matrixWorld).elements });
+  });
+  const samples = sampleSurface(meshes);
+  shape = { samples, ...buildBoxes(samples) };
+  shapeCache.set(object3d, shape);
+  return shape;
+}
+
+/** Pairs of piece ids whose surfaces touch over at least [minArea] m² in the given poses (e.g. anatomical home). */
+export function touchingPairs(pieces, minArea = 0) {
+  const layout = pieces.map(({ id, object3d }) => ({
+    id, shape: shapeOf(object3d), pos: object3d.position.toArray(), quat: object3d.quaternion.toArray(),
+  }));
+  return detectJoints(layout).filter((j) => j.area > 0 && j.area >= minArea).map((j) => [layout[j.a].id, layout[j.b].id]);
+}
+
+/**
+ * Runs the sturdiness test on [pieces] ({id, object3d}; object3d sits directly
+ * in the scene, its pose is the piece pose). With [animate] the simulation
+ * advances in real time on animation frames and writes the poses back into
+ * the objects (onFrame after each frame); otherwise it runs headless to the
+ * end. Optional hooks for effects: onBreak(point[3]), onBall({pos, quat,
+ * radius}), onImpact(point[3]), onFloor(x, z); abort() → true stops early
+ * (resolves null). [neighbours] are always joined when [forceNeighbours]
+ * (used for the anatomical reference).
+ * Resolves { metric, heightKept, jointsKept, jointsTotal, piecesUsed, stable }.
+ */
+export async function runSturdinessTest({
+  pieces, neighbours = [], floorY, animate = false, seed = SIM.seed, forceNeighbours = false,
+  onPhase, onFrame, onBreak, onBall, onImpact, onFloor, abort,
+}) {
+  const layout = pieces.map(({ id, object3d }) => ({
+    id, shape: shapeOf(object3d), pos: object3d.position.toArray(), quat: object3d.quaternion.toArray(),
+  }));
+  const savedSeed = SIM.seed;
+  SIM.seed = seed;
+  const test = new StructureTest(layout, { floorY, neighbours, forceNeighbours, record: false });
+  SIM.seed = savedSeed;
+  let phase = null;
+  const notePhase = () => {
+    const p = test.phase === 'ball' ? 'impact' : test.phase;
+    if (p !== 'done' && p !== phase) {
+      phase = p;
+      onPhase?.(p);
+    }
+  };
+  let impacted = false;
+  const advance = () => {
+    for (const j of test.step()) onBreak?.(j.crackAt);
+    if (!impacted && test.impactStep >= 0) {
+      impacted = true;
+      const b = test.ball.position;
+      onImpact?.([b.x, b.y, b.z]);
+    }
+    notePhase();
+  };
+  const writeBack = () => {
+    test.bodies.forEach((b, i) => {
+      const o = pieces[i].object3d;
+      o.position.set(b.position.x, b.position.y, b.position.z);
+      o.quaternion.set(b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w);
+    });
+    onFloor?.(test.floor.position.x, test.floor.position.z);
+    if (test.ball) {
+      const { position: p, quaternion: q } = test.ball;
+      onBall?.({ pos: [p.x, p.y, p.z], quat: [q.x, q.y, q.z, q.w], radius: SIM.ballRadius });
+    }
+    onFrame?.();
+  };
+  notePhase();
+  try {
+    if (!animate) {
+      while (!test.done) advance();
+    } else {
+      let last = null, target = 0;
+      while (!test.done) {
+        const now = await new Promise((resolve) => requestAnimationFrame(resolve));
+        if (abort?.()) return null;
+        target += last === null ? 0 : Math.min(0.05, (now - last) / 1000);
+        last = now;
+        const t0 = performance.now();
+        // Budgeted: on a slow device the playback just runs a little slower.
+        while (!test.done && test.time < target && performance.now() - t0 < 10) advance();
+        writeBack();
+      }
+    }
+    const m = test.metrics;
+    return {
+      metric: m.metric,
+      heightKept: m.K,
+      jointsKept: m.joints - m.broken,
+      jointsTotal: m.joints,
+      piecesUsed: m.used,
+      stable: m.C >= 1,
+    };
+  } finally {
+    test.dispose();
+  }
 }

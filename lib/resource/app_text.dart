@@ -254,4 +254,45 @@ abstract class AppText {
   static const String lessonNewBest = 'Kỷ lục sao mới!';
   static const String lessonRestudy = 'Học lại';
   static const String lessonToList = 'Về danh sách';
+
+  // Creative bone builder
+  static const String builderTitle = 'Xếp xương sáng tạo';
+  static const String builderSubtitle = 'Xếp khối xương thật vững, rồi thử động đất!';
+  static const String builderNew = 'MỚI';
+  static String builderBest(int? score) => score == null ? 'Chưa có điểm' : 'Kỷ lục $score';
+  static String builderBestShort(int? score) => score == null ? '—' : '$score';
+  static const String builderHelp = 'Luật chơi';
+  static const String builderRules =
+      'Chạm một mảnh xương để chọn, kéo để di chuyển và xoay bằng các nút X, Y, Z. '
+      'Xếp tự do thành công trình vững chắc nhất có thể.\n\n'
+      'Nhấn "Kiểm tra độ cứng": công trình sẽ được thả ổn định, rung động đất rồi bị một quả bóng nặng va vào.\n\n'
+      '100 điểm = bộ xương xếp đúng giải phẫu. Xếp khéo có thể vượt 100!\n'
+      '★ từ 60 · ★★ từ 100 · ★★★ từ 140 điểm.';
+  static const String builderRulesOk = 'Đã hiểu';
+  static const String builderPickHint = 'Chạm một mảnh xương để chọn';
+  static String builderPlaced(int placed, int total) => '$placed/$total';
+  static const String builderFineStep = '15°';
+  static const String builderCoarseStep = '90°';
+  static const String builderRotateFine = 'Xoay từng 15°';
+  static String builderRotateAxis(String axis) => 'Xoay quanh trục $axis';
+  static const String builderUndo = 'Hoàn tác';
+  static const String builderReset = 'Xếp lại';
+  static const String builderAnatomical = 'Xếp chuẩn giải phẫu';
+  static const String builderTest = 'Kiểm tra độ cứng';
+  static String builderNeedPieces(int min) => 'Cần ít nhất $min mảnh';
+  static const String builderPhaseSettle = 'Ổn định…';
+  static const String builderPhaseQuake = 'Động đất!';
+  static const String builderPhaseImpact = 'Va chạm!';
+  static const String builderResultTitle = 'Độ cứng công trình';
+  static const String builderVsAnatomical = 'vs 100 chuẩn giải phẫu';
+  static const String builderHeightKept = 'Giữ chiều cao';
+  static const String builderJointsKept = 'Khớp còn nguyên';
+  static const String builderPiecesUsed = 'Mảnh đã dùng';
+  static const String builderStable = 'Đứng vững';
+  static const String builderStableYes = 'Có';
+  static const String builderStableNo = 'Không';
+  static const String builderNewBest = 'Kỷ lục mới!';
+  static String builderXp(int xp) => '+$xp XP';
+  static const String builderEdit = 'Sửa tiếp';
+  static const String builderPlayAgain = 'Chơi mới';
 }

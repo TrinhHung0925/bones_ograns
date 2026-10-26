@@ -92,6 +92,84 @@ class ComboEvent extends AssemblyEvent {
   final int count;
 }
 
+/// Phase of the creative builder's stability test.
+enum BuilderPhase {
+  settle,
+  quake,
+  impact;
+
+  static BuilderPhase fromName(String? name) => values.firstWhere((p) => p.name == name, orElse: () => settle);
+}
+
+/// Events of the creative bone builder, on [ViewerBridge.builderEvents]. Kept
+/// apart from [ViewerEvent] and [AssemblyEvent] like the assembly game.
+sealed class BuilderEvent {
+  const BuilderEvent();
+}
+
+/// Builder: pieces are laid out; [baseline] is the anatomical skeleton's metric.
+class BuilderReady extends BuilderEvent {
+  const BuilderReady({required this.baseline, required this.pieceCount});
+  final num baseline;
+  final int pieceCount;
+}
+
+/// Builder: the selected piece changed; [id] is null when none is selected.
+class BuilderSelected extends BuilderEvent {
+  const BuilderSelected(this.id);
+  final String? id;
+}
+
+/// Builder: the structure changed; [placed] pieces are in the build.
+class BuilderChanged extends BuilderEvent {
+  const BuilderChanged({required this.placed, required this.canUndo});
+  final int placed;
+  final bool canUndo;
+}
+
+/// Builder: the stability test entered [phase].
+class BuilderTesting extends BuilderEvent {
+  const BuilderTesting(this.phase);
+  final BuilderPhase phase;
+}
+
+/// Builder: the stability test finished. [score] is 100 for the anatomical
+/// skeleton and may exceed it.
+class BuilderResult extends BuilderEvent {
+  const BuilderResult({
+    required this.score,
+    required this.metric,
+    required this.baseline,
+    required this.heightKept,
+    required this.jointsKept,
+    required this.jointsTotal,
+    required this.piecesUsed,
+    required this.stable,
+  });
+
+  factory BuilderResult.fromJson(Map<String, dynamic> data) => BuilderResult(
+    score: (data['score'] as num? ?? 0).round(),
+    metric: data['metric'] as num? ?? 0,
+    baseline: data['baseline'] as num? ?? 0,
+    heightKept: data['heightKept'] as num? ?? 0,
+    jointsKept: (data['jointsKept'] as num? ?? 0).toInt(),
+    jointsTotal: (data['jointsTotal'] as num? ?? 0).toInt(),
+    piecesUsed: (data['piecesUsed'] as num? ?? 0).toInt(),
+    stable: data['stable'] as bool? ?? false,
+  );
+
+  final int score;
+  final num metric;
+  final num baseline;
+
+  /// Share (0–1) of the structure's height left standing.
+  final num heightKept;
+  final int jointsKept;
+  final int jointsTotal;
+  final int piecesUsed;
+  final bool stable;
+}
+
 /// Drives the three.js page in `assets/viewer`. Swapping the rendering engine
 /// later only needs a new implementation of these commands and events.
 class ViewerBridge {
@@ -118,6 +196,7 @@ class ViewerBridge {
   late final WebViewController webView;
   final _events = StreamController<ViewerEvent>.broadcast();
   final _assemblyEvents = StreamController<AssemblyEvent>.broadcast();
+  final _builderEvents = StreamController<BuilderEvent>.broadcast();
   final _pending = <String>[];
   final _settingsSubs = <StreamSubscription<Object?>>[];
   bool _ready = false;
@@ -126,8 +205,28 @@ class ViewerBridge {
 
   Stream<AssemblyEvent> get assemblyEvents => _assemblyEvents.stream;
 
+  Stream<BuilderEvent> get builderEvents => _builderEvents.stream;
+
   void _onMessage(JavaScriptMessage message) {
     final data = jsonDecode(message.message) as Map<String, dynamic>;
+    final builder = switch (data['type']) {
+      'builderReady' => BuilderReady(
+        baseline: data['baseline'] as num? ?? 0,
+        pieceCount: (data['pieceCount'] as num? ?? 0).toInt(),
+      ),
+      'builderSelected' => BuilderSelected(data['id'] as String?),
+      'builderChanged' => BuilderChanged(
+        placed: (data['placed'] as num? ?? 0).toInt(),
+        canUndo: data['canUndo'] as bool? ?? false,
+      ),
+      'builderTesting' => BuilderTesting(BuilderPhase.fromName(data['phase'] as String?)),
+      'builderResult' => BuilderResult.fromJson(data),
+      _ => null,
+    };
+    if (builder != null) {
+      if (!_builderEvents.isClosed) _builderEvents.add(builder);
+      return;
+    }
     final assembly = switch (data['type']) {
       'assemblyReady' => AssemblyReady(data['count'] as int),
       'pieceGrabbed' => PieceGrabbed(data['id'] as String),
@@ -225,11 +324,40 @@ class ViewerBridge {
   /// Leaves the assembly game and restores the normal scene.
   void assemblyEnd() => _call('assemblyEnd');
 
+  /// Starts the creative bone builder; each piece is
+  /// `{id, name, partIds}`. The viewer loads the skeleton itself.
+  void builderStart(List<Map<String, Object>> pieces) => _call('builderStart', [
+    {'pieces': pieces},
+  ]);
+
+  /// Turns the selected builder piece by [degrees] around [axis] ('x', 'y' or 'z').
+  void builderRotate(String axis, num degrees) => _call('builderRotate', [
+    {'axis': axis, 'degrees': degrees},
+  ]);
+
+  void builderUndo() => _call('builderUndo', [<String, Object>{}]);
+
+  /// Lays the pieces out loose again.
+  void builderReset() => _call('builderReset', [<String, Object>{}]);
+
+  /// Puts every piece in its anatomical place (the 100-point reference).
+  void builderAnatomical() => _call('builderAnatomical', [<String, Object>{}]);
+
+  /// Runs the stability test (settle, earthquake, heavy ball).
+  void builderTest() => _call('builderTest', [<String, Object>{}]);
+
+  /// Back to building after a test, with the structure as it was built.
+  void builderEdit() => _call('builderEdit', [<String, Object>{}]);
+
+  /// Leaves the builder and restores the normal scene.
+  void builderStop() => _call('builderStop', [<String, Object>{}]);
+
   void dispose() {
     for (final sub in _settingsSubs) {
       sub.cancel();
     }
     _events.close();
     _assemblyEvents.close();
+    _builderEvents.close();
   }
 }

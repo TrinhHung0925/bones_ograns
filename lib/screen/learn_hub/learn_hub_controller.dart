@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../model/lesson.dart';
 import '../../route.dart';
 import '../../service/anatomy_service.dart';
+import '../../service/local_service.dart';
 import '../../service/progress_service.dart';
 
 /// "Học & Thi": the player profile (level, XP, streak, mistakes) and the
@@ -10,6 +11,7 @@ import '../../service/progress_service.dart';
 class LearnHubController extends GetxController {
   final _anatomy = Get.find<AnatomyService>();
   final progress = Get.find<ProgressService>();
+  final _local = Get.find<LocalService>();
 
   late final List<Lesson> _lessons;
 
@@ -55,6 +57,11 @@ class LearnHubController extends GetxController {
   Future<void> openExam() => _open(AppPage.examSetup.routeName);
 
   Future<void> openMistakes() => _open(AppPage.mistakes.routeName);
+
+  /// Best score of the creative bone builder (null = never tested).
+  int? get builderBest => _local.boneBuilderBest;
+
+  Future<void> openBoneBuilder() => _open(AppPage.boneBuilder.routeName);
 
   void onBack() {
     Get.back();

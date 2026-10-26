@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'screen/about/about_view.dart';
 import 'screen/assembly/assembly_view.dart';
 import 'screen/assembly_levels/assembly_levels_view.dart';
+import 'screen/bone_builder/bone_builder_view.dart';
 import 'screen/daily/daily_view.dart';
 import 'screen/exam/exam_view.dart';
 import 'screen/exam_setup/exam_setup_view.dart';
@@ -51,6 +52,8 @@ Route<dynamic> generateRoute(RouteSettings settings) {
       return page(settings, () => LessonsView());
     case "/lesson":
       return page(settings, () => LessonView());
+    case "/boneBuilder":
+      return page(settings, () => BoneBuilderView());
 
     default:
       return page(
@@ -63,7 +66,7 @@ Route<dynamic> generateRoute(RouteSettings settings) {
   }
 }
 
-enum AppPage { splash, home, partSearch, quiz, about, assemblyLevels, assembly, daily, examSetup, exam, mistakes, learnHub, lessons, lesson }
+enum AppPage { splash, home, partSearch, quiz, about, assemblyLevels, assembly, daily, examSetup, exam, mistakes, learnHub, lessons, lesson, boneBuilder }
 
 extension AppPageExtension on AppPage {
   String get routeName {
@@ -96,6 +99,8 @@ extension AppPageExtension on AppPage {
         return '/${AppPage.lessons.name}';
       case AppPage.lesson:
         return '/${AppPage.lesson.name}';
+      case AppPage.boneBuilder:
+        return '/${AppPage.boneBuilder.name}';
     }
   }
 }

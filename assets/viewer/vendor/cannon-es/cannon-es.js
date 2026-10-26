@@ -1,3 +1,4 @@
+// cannon-es 0.20.0 (npm: cannon-es@0.20.0, dist/cannon-es.js, unmodified apart from this line). MIT, see LICENSE.
 /**
  * Records what objects are colliding with each other
  */

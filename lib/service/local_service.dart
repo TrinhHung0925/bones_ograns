@@ -14,6 +14,7 @@ class LocalService extends GetxService {
   static const _keySoundEnabled = 'sound_enabled';
   static const _keyGraphicsQuality = 'graphics_quality';
   static const _keyAssemblyTutorialSeen = 'assembly_tutorial_seen';
+  static const _keyBoneBuilderBest = 'bone_builder_best';
 
   LocalService({GetStorage? box}) : _box = box ?? GetStorage() {
     soundEnabled = (_box.read<bool>(_keySoundEnabled) ?? true).obs;
@@ -92,5 +93,16 @@ class LocalService extends GetxService {
       }
     }
     return improved;
+  }
+
+  /// Best score of the creative bone builder (null = never tested).
+  int? get boneBuilderBest => _box.read<int>(_keyBoneBuilderBest);
+
+  /// Stores [score] if it beats the best; returns whether it did.
+  Future<bool> saveBoneBuilderScore(int score) async {
+    final best = boneBuilderBest;
+    if (best != null && score <= best) return false;
+    await _box.write(_keyBoneBuilderBest, score);
+    return true;
   }
 }
