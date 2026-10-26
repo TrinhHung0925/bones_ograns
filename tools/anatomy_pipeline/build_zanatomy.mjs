@@ -56,7 +56,8 @@ const LICENCE_EXCLUDE = [
 // against "<file>/<group path>/<mesh name>".
 const SKIP = [
   [/\/(Cross_Section|Take_a_picture|Medulla-path)[^/]*$|-profile$|\?/, 'helper object'],
-  [/\/(Pleura|Greater_omentum|Spinal_dura|Mucosa_of_stomach|Mesocolon)$/, 'occluding sheet / duplicate lining'],
+  [/\/(Pleura|Greater_omentum|Spinal_dura|Mucosa_of_stomach|Mesocolon|Epicranial_aponeurosis[lr])$/,
+    'occluding sheet / duplicate lining'],
   [/^MuscularSystem100\/Fasciaeg\/(?!.*\/[^/]*(retinaculum|ligament|arch|Palmar_aponeurosis|Plantar_aponeurosis)[^/]*$)/,
     'fascia sheet (would wrap and hide the muscles)'],
   [/^NervousSystem100\/.*\/[^/]*(sulcus|sulci|Lat_Fis|Sulcus_interm)[^/]*$/i, 'sulcus surface strip'],
@@ -100,7 +101,7 @@ const SAME_AS_EXISTING = [
   [/\/(Superior|Inferior)_tarsus[lr]$/, 'tarsal plate'],
   [/\/(Scapular_spinal_part_of_deltoid_muscle|(Clavicular|Sternocostal)_head_of_pectoralis_major_muscle)[lr]$/, 'shoulder muscle part'],
   // Vessels that BodyParts3D has as a set, a trunk or as named branches.
-  [new RegExp(`/(${[
+  [new RegExp(`/\\(?(${[
     'Gastroduodenal_artery', 'Ileal_branch_of_ileocolic_artery', 'Inferior_phrenic_artery', 'Marginal_artery',
     'Posterior_cerebral_artery', 'Superficial_palmar_arch', 'Calcaneal_branches_of_posterior_tibial_artery',
     'Common_plantar_digital_arteries', 'Proper_plantar_digital_arteries', 'Common_palmar_digital_arteries',
@@ -108,7 +109,9 @@ const SAME_AS_EXISTING = [
     'Radial_collateral_artery', 'Palmar_digital_veins', 'Plantar_digital_veins', 'Perforating_veins',
     'Plantar_venous_arch', 'Temporo-occipital_branch', 'Posterior_temporal_branch', 'Anterior_temporal_branch',
     'Branch_to_angular_gyrus', 'Thoraco-acromial_artery', 'Ulnar_recurrent_artery', 'Brachial_veins',
-  ].join('|')})[lr]?$`), 'vessel set / trunk / branch'],
+  ].join('|')})\\)?[lr]?$`), 'vessel set / trunk / branch'],
+  [/cerebral_artery|striate_branches|pontine_branches|Postcentral_arterial_branch|Orbitofrontal_branches/,
+    'cerebral arteries'],
 ];
 
 // Kept although they overlap an existing part of similar extent (checked by hand).
@@ -334,14 +337,22 @@ function makeSideParser(allMeshes, bpParts) {
   };
 }
 
-const RENAME = { 'White matter of spinal cord': 'Spinal cord' };
+const RENAME = {
+  'White matter of spinal cord': 'Spinal cord',
+  'Tendon sheath - abd pollicis longus - ext pollicis brevis':
+    'Tendon sheath of abductor pollicis longus and extensor pollicis brevis',
+};
 
 function displayBase(base) {
   let s = base.replace(/\*/g, '').replace(/_+/g, ' ').replace(/\s+/g, ' ').trim();
   if (/^\(.*\)$/.test(s)) s = s.slice(1, -1).trim();
-  // BodyParts3D style: "Left latissimus dorsi", not "... dorsi muscle".
-  s = s.replace(/ muscle$/, '').replace(/ muscle \(/, ' (');
-  return RENAME[s] ?? s;
+  s = RENAME[s] ?? s;
+  // BodyParts3D style: "Left latissimus dorsi", not "... dorsi muscle";
+  // "Left abducens nerve", without the cranial nerve numeral.
+  return s.replace(/ muscle$/, '').replace(/ muscle \(/, ' (')
+    .replace(/ \((I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)\)$/, '')
+    .replace(/ \((Lateral|Medial) meniscus\)$/, (_, w) => ` of ${w.toLowerCase()} meniscus`)
+    .replace(/\bBucinator\b/, 'Buccinator').replace(/\bbucinator\b/, 'buccinator');
 }
 
 function displayName(base, side) {
@@ -590,7 +601,7 @@ for (const file of FILES) {
   meshes.push(...list);
 }
 
-const report = { licence: [], skipped: new Map(), duplicate: [], notSkeletal: [], merged: [] };
+const report = { licence: [], skipped: new Map(), duplicate: [], notSkeletal: [], merged: [], sideFixed: [] };
 const skip = (m, why) => {
   if (!report.skipped.has(why)) report.skipped.set(why, []);
   report.skipped.get(why).push(m.name);
@@ -621,7 +632,13 @@ for (const m of meshes) {
   const { base, side } = sideOf(m);
   m.base = base;
   m.zbox = bbox(m.pos);
+  // Left is +X in both frames. A few meshes carry the wrong suffix; a part
+  // lying entirely on the other side takes the side of its position.
   m.side = side === 'x' ? (center(m.zbox)[0] > 0 ? 'l' : 'r') : side;
+  if ((m.side === 'l' && m.zbox.max[0] < -0.5) || (m.side === 'r' && m.zbox.min[0] > 0.5)) {
+    report.sideFixed.push(m.name);
+    m.side = m.side === 'l' ? 'r' : 'l';
+  }
   m.name_en = displayName(base, m.side);
   m.key = normKey(m.name_en);
   m.match = bpByKey.get(m.key) ?? null;
@@ -639,9 +656,8 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 const errOf = (f) => skeletalPairs.map((m) => dist(f(center(m.zbox)), center(m.match.box)) * 1000);
 const eSim = errOf(sim.apply);
 const eAff = errOf(affine);
-if (process.env.ZA_DEBUG) skeletalPairs.forEach((m, i) => console.log('pair', m.name, '=', m.match.name, eSim[i].toFixed(1)));
 log(`alignment on ${skeletalPairs.length} shared bones (box centres):`);
-log(`  similarity (scale ${(sim.s * 100).toFixed(4)} cm->m %): rms ${rms(eSim).toFixed(1)} mm, max ${Math.max(...eSim).toFixed(1)} mm`);
+log(`  similarity (scale ${sim.s.toFixed(6)} m/cm): rms ${rms(eSim).toFixed(1)} mm, max ${Math.max(...eSim).toFixed(1)} mm`);
 log(`  affine: rms ${rms(eAff).toFixed(1)} mm, max ${Math.max(...eAff).toFixed(1)} mm`);
 
 // Landmarks: shared bones (centre + extremes) and other shared parts of a
@@ -661,7 +677,14 @@ for (const m of meshes) {
   const n = isBone ? 7 : 1;
   const group = anchorParts.length;
   anchorParts.push({ m, isBone, group });
-  for (let i = 0; i < n; i++) landmarks.push({ at: za[i], d: bb[i].map((v, k) => v - za[i][k]), group, isBone });
+  // Extreme vertices are only trusted when they agree with the centre's offset
+  // (a stray piece in either mesh would otherwise drag the warp far away).
+  const d0 = bb[0].map((v, k) => v - za[0][k]);
+  for (let i = 0; i < n; i++) {
+    const d = bb[i].map((v, k) => v - za[i][k]);
+    if (i > 0 && dist(d, d0) > 0.015) continue;
+    landmarks.push({ at: za[i], d, group, isBone });
+  }
 }
 // Leave-one-out check on the bones: how far is each bone's centre from its
 // BodyParts3D twin when the warp is built without that bone?
@@ -697,6 +720,14 @@ for (const m of meshes) {
   }
   m.pos = out;
   m.box = bbox(out);
+}
+{
+  // The warp must not stretch meshes: compare extents before and after.
+  const stretch = meshes.map((m) => {
+    const a = extent(m.zbox).map((v) => v * sim.s), b = extent(m.box);
+    return { m, d: Math.max(...a.map((v, k) => Math.abs(b[k] - v))) };
+  }).sort((x, y) => y.d - x.d);
+  log(`  largest extent change from the warp: ${stretch.slice(0, 3).map((x) => `${x.m.name} ${(x.d * 1000).toFixed(1)} mm`).join(', ')}`);
 }
 
 // 3. Occupancy of BodyParts3D at 2 mm.
@@ -903,9 +934,10 @@ console.log(`\nLicence exclusions (${report.licence.length}):`);
 for (const l of report.licence) console.log(`  ${l}`);
 console.log(`\nSkipped by rule:`);
 for (const [why, list] of report.skipped) console.log(`  ${why} (${list.length}): ${list.slice(0, 12).join(', ')}${list.length > 12 ? ', …' : ''}`);
-console.log(`\nNot added because they would be skeletal (${report.notSkeletal.length}): ${report.notSkeletal.join(', ')}`);
+console.log(`\nBones never added (BodyParts3D owns the skeleton; ${report.notSkeletal.length} unmatched): ${report.notSkeletal.join(', ')}`);
 console.log(`Duplicates of BodyParts3D parts: ${report.duplicate.length}`);
 console.log(`Merged pieces: ${report.merged.length}`);
+console.log(`Side suffix corrected from position: ${report.sideFixed.join(', ') || 'none'}`);
 if (process.env.ZA_VERBOSE) {
   fs.writeFileSync(outJson.replace(/\.json$/, '.report.txt'), [
     '# duplicates', ...report.duplicate,

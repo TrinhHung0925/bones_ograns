@@ -581,7 +581,8 @@ class AssemblyLevel {
       BodySystem.urinary,
       BodySystem.cardiovascular,
       BodySystem.respiratory,
-      BodySystem.other,
+      // The spleen.
+      BodySystem.lymphatic,
     ],
     include: const [
       r'^(Stomach|Gallbladder|Pancreas|Duodenum|Rectum|Spleen|Esophagus|Trachea)$',
@@ -804,7 +805,8 @@ class AssemblyLevel {
       BodySystem.digestive,
       BodySystem.urinary,
       BodySystem.nervous,
-      BodySystem.other,
+      // The spleen.
+      BodySystem.lymphatic,
     ],
     variants: {
       AssemblyDetail.coarse: [..._skeletonBlocks.map(_skeletalOnly), ..._organGroups],
@@ -822,7 +824,11 @@ class AssemblyLevel {
       nameVi: 'Não',
       nameEn: 'Brain',
       include: [r'.'],
-      exclude: [r'nerve|ganglion'],
+      // Only the brain: not the spinal cord, nerves, plexuses or sympathetic chain.
+      exclude: [
+        r'nerve|ganglion|ganglia|brachial plexus|sympathetic|chorda tympani',
+        r'^(Spinal cord|Cauda equina)$',
+      ],
       systems: [BodySystem.nervous],
     ),
     AssemblyGroup(
