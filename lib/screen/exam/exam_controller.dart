@@ -43,10 +43,15 @@ class ExamController extends GetxController {
   Timer? _advance;
   bool _finishing = false;
 
+  /// Day whose daily challenge this is; a play that ends after midnight
+  /// must not use up the next day's challenge.
+  late final String _day;
+
   @override
   void onInit() {
     super.onInit();
     config = Get.arguments as ExamConfig? ?? const ExamConfig();
+    _day = _progress.today;
     if (config.kind == ExamKind.daily && config.seed == null) {
       config = config.copyWith(seed: _progress.dailySeed);
     }
@@ -168,6 +173,11 @@ class ExamController extends GetxController {
         update();
       case PartTapped(:final partId) when partId != null:
         _onTap(partId);
+      // The viewer doesn't say which system failed; stop waiting for the
+      // current one so the question can still be skipped.
+      case ViewerError() when loading:
+        _loaded.add(current.target.system);
+        update();
       default:
     }
   }
@@ -263,7 +273,7 @@ class ExamController extends GetxController {
         isNewBest = await _progress.saveExamScore(config.scopeId, session.score);
         best = _progress.examBest(config.scopeId);
       case ExamKind.daily:
-        dailyFirst = await _progress.saveDaily(session.score);
+        dailyFirst = _day == _progress.today && await _progress.saveDaily(session.score);
         xp = dailyFirst ? correctXp + ProgressService.xpDailyBonus : 0;
       case ExamKind.mistakes:
         break;

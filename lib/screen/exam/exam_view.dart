@@ -489,7 +489,7 @@ class _OptionButton extends StatelessWidget {
         height: height.h,
         width: double.infinity,
         // Same footprint as the raised button, its edge included.
-        margin: EdgeInsets.only(top: 4.r),
+        margin: EdgeInsets.only(top: 4.h),
         padding: EdgeInsets.symmetric(horizontal: 10.w),
         decoration: BoxDecoration(
           color: color.withValues(alpha: state == _OptionState.faded ? 1 : 0.28),

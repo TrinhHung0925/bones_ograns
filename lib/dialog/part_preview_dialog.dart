@@ -36,7 +36,8 @@ class _PartPreviewDialogState extends State<PartPreviewDialog> {
     super.initState();
     final part = widget.part;
     _sub = _viewer.events.listen((event) {
-      if (event is SystemLoaded && event.system == part.system && mounted) setState(() => _loading = false);
+      final done = (event is SystemLoaded && event.system == part.system) || event is ViewerError;
+      if (done && mounted) setState(() => _loading = false);
     });
     _viewer.setSystemVisible(part.system, true);
     _viewer.isolate(part.id);

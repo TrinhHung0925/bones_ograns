@@ -125,6 +125,7 @@ class QuizController extends GetxController {
   Future<void> _finish() async {
     final isNewBest = await _local.saveQuizScore(system, session.score);
     await _progress.addXp(session.score * ProgressService.xpPerCorrect);
+    if (isClosed) return;
     final again = await QuizResultDialog.show(
       score: session.score,
       total: session.length,

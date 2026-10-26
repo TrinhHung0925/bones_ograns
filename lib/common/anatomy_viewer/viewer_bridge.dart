@@ -180,6 +180,10 @@ class ViewerBridge {
 
   void isolate(String partId) => _call('isolate', [partId]);
 
+  /// Ghosts the solid parts that enclose [partId] (e.g. heart walls around a
+  /// valve), so it can be seen and tapped.
+  void ghostEnclosing(String partId) => _call('ghostEnclosing', [partId]);
+
   void showAll() => _call('showAll');
 
   void focus(String partId) => _call('focus', [partId]);

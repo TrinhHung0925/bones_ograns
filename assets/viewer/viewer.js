@@ -218,6 +218,26 @@ function pick(clientX, clientY) {
   return hit ? hit.object.name : null;
 }
 
+// Whether `mesh` surrounds `point` (a heart wall around a valve): rays shot
+// from outside towards the point hit the mesh first from most directions.
+const encloseRay = new THREE.Raycaster();
+const ENCLOSE_DIRS = [
+  [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1],
+  [1, 1, 1], [1, 1, -1], [1, -1, 1], [1, -1, -1], [-1, 1, 1], [-1, 1, -1], [-1, -1, 1], [-1, -1, -1],
+].map((d) => new THREE.Vector3(...d).normalize());
+function enclosesPoint(mesh, point) {
+  const box = new THREE.Box3().setFromObject(mesh);
+  if (!box.containsPoint(point)) return false;
+  const reach = box.getSize(new THREE.Vector3()).length();
+  let hits = 0;
+  for (const dir of ENCLOSE_DIRS) {
+    encloseRay.set(point.clone().addScaledVector(dir, reach), dir.clone().negate());
+    encloseRay.far = reach;
+    if (encloseRay.intersectObject(mesh, false).length > 0) hits++;
+  }
+  return hits >= ENCLOSE_DIRS.length * 0.75;
+}
+
 let down = null;
 let activePointers = 0;
 let lastTap = { id: undefined, time: 0 };
@@ -1130,6 +1150,19 @@ const commands = {
     for (const [partId, part] of parts) {
       if (!systems.get(part.system)?.visible) continue;
       part.state = partId === id ? 'visible' : 'ghost';
+      applyVisual(part);
+    }
+  },
+  /** Ghosts the solid parts enclosing part `id`, so an inner part stays visible and tappable. */
+  ghostEnclosing(id) {
+    const target = parts.get(id);
+    if (!target) return;
+    scene.updateMatrixWorld();
+    const center = new THREE.Box3().setFromObject(target.mesh).getCenter(new THREE.Vector3());
+    for (const [partId, part] of parts) {
+      if (partId === id || part.state !== 'visible' || !systems.get(part.system)?.visible) continue;
+      if (!enclosesPoint(part.mesh, center)) continue;
+      part.state = 'ghost';
       applyVisual(part);
     }
   },

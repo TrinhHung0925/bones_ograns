@@ -38,7 +38,9 @@ class HomeController extends GetxController {
   bool get isLoading => !ready.value || loadingSystems.isNotEmpty;
 
   /// Nothing to look at yet: the page or every visible system is loading.
-  bool get isFirstLoad => !ready.value || visibleSystems.every(loadingSystems.contains);
+  /// With every system switched off there is nothing to wait for.
+  bool get isFirstLoad =>
+      !ready.value || (visibleSystems.isNotEmpty && visibleSystems.every(loadingSystems.contains));
 
   /// Systems being loaded, for the loading screen ("Xương · Cơ").
   String get loadingLabel => (loadingSystems.isEmpty ? visibleSystems : loadingSystems).map((s) => s.label).join(' · ');

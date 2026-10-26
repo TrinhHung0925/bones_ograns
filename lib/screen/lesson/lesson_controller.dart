@@ -163,11 +163,21 @@ class LessonController extends GetxController {
     // Only the lesson's parts stay solid (and tappable); the rest is context.
     viewer.select(null);
     viewer.isolate(parts.first.id);
-    for (final p in parts.skip(1)) {
-      viewer.setPartState(p.id, PartState.visible);
-    }
+    _showQuestion();
     viewer.resetCamera();
     update();
+  }
+
+  /// Lesson parts solid again, then those enclosing the target (heart walls
+  /// around a valve) ghosted so an inner target stays tappable. Ghosted parts
+  /// are only non-answers and the target is never marked, so it stays a test.
+  void _showQuestion() {
+    final session = this.session;
+    if (session == null || session.finished) return;
+    for (final p in parts) {
+      viewer.setPartState(p.id, PartState.visible);
+    }
+    viewer.ghostEnclosing(session.current.id);
   }
 
   void _onAnswer(String partId) {
@@ -226,6 +236,7 @@ class LessonController extends GetxController {
       final session = this.session!;
       session.next();
       _clearFeedback();
+      _showQuestion();
       viewer.resetCamera();
       update();
       if (session.finished) _finish();
@@ -238,6 +249,8 @@ class LessonController extends GetxController {
     final isNewBest = await _progress.saveLessonStars(lesson.id, stars);
     final xp = session.score * ProgressService.xpPerCorrect + stars * ProgressService.xpPerStar;
     final levelUp = await _progress.addXp(xp);
+    // Left while saving: don't pop the dialog over the previous screen.
+    if (isClosed) return;
     final again = await LessonResultDialog.show(
       title: lesson.title,
       stars: stars,

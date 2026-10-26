@@ -69,10 +69,11 @@ class ProgressService extends GetxService {
 
   /// Marks today as active, extending or restarting the streak.
   Future<void> recordActivity() async {
-    final today = _day(_clock());
+    final now = _clock();
+    final today = _day(now);
     final last = _box.read<String>(_keyLastActiveDay);
     if (last == today) return;
-    final yesterday = _day(_clock().subtract(const Duration(days: 1)));
+    final yesterday = _day(_dayBefore(now));
     final next = last == yesterday ? (_box.read<int>(_keyStreak) ?? 0) + 1 : 1;
     await _box.write(_keyStreak, next);
     await _box.write(_keyLastActiveDay, today);
@@ -82,8 +83,9 @@ class ProgressService extends GetxService {
 
   int _liveStreak() {
     final last = _box.read<String>(_keyLastActiveDay);
-    final today = _day(_clock());
-    final yesterday = _day(_clock().subtract(const Duration(days: 1)));
+    final now = _clock();
+    final today = _day(now);
+    final yesterday = _day(_dayBefore(now));
     return last == today || last == yesterday ? _box.read<int>(_keyStreak) ?? 0 : 0;
   }
 
@@ -93,8 +95,13 @@ class ProgressService extends GetxService {
   static String _day(DateTime t) =>
       '${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
 
-  /// Same seed for every player on the same day.
-  int get dailySeed => today.hashCode & 0x7fffffff;
+  /// The calendar day before [t]; subtracting 24 hours can skip or repeat a
+  /// day around a daylight-saving change.
+  static DateTime _dayBefore(DateTime t) => DateTime(t.year, t.month, t.day - 1);
+
+  /// Same seed for every player on the same day (yyyymmdd; `String.hashCode`
+  /// is not stable across platforms or SDK versions).
+  int get dailySeed => int.parse(today.replaceAll('-', ''));
 
   bool get dailyDone => _box.read<String>(_keyDailyDay) == today;
 
@@ -134,7 +141,12 @@ class ProgressService extends GetxService {
     return list;
   }
 
-  Map<String, int> get _mistakes => (_box.read<Map<String, dynamic>>(_keyMistakes) ?? const {}).cast<String, int>();
+  /// Read back from disk the map is `Map<String, dynamic>`, so counts are
+  /// converted one by one instead of cast.
+  Map<String, int> get _mistakes => {
+    for (final e in (_box.read<Map<dynamic, dynamic>>(_keyMistakes) ?? const {}).entries)
+      if (e.value is num) '${e.key}': (e.value as num).toInt(),
+  };
 
   Future<void> addMistake(String partId) async {
     final map = Map.of(_mistakes);
