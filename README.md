@@ -14,19 +14,32 @@ Mô hình đã build sẵn trong `assets/anatomy/`, không cần chạy pipeline
 
 ## Kiến trúc
 
+Theo chuẩn `flutter_architecture.md`: GetX (state, DI, route), get_storage, flutter_screenutil
+(thiết kế 390×884), chỉ màn hình dọc.
+
 ```
 lib/
-  data/            BodySystem (12 hệ), AnatomyRepository (đọc parts.json)
-  viewer/          AssetServer (HTTP loopback) + AnatomyViewerController (lệnh/sự kiện)
-  features/
-    explore/       màn hình chính, bảng hệ cơ quan, thẻ bộ phận, tìm kiếm
-    quiz/          QuizSession (logic thuần) + QuizScreen
-    about/         ghi nguồn giấy phép
-  services/        Pronouncer (flutter_tts)
+  route.dart       khai báo mọi màn hình (AppPage.xyz.routeName)
+  common/          bộ widget game (GameButton, GameHeader, StageFrame…), anatomy_viewer/ (WebView + ViewerBridge)
+  dialog/          chọn hệ để đố, kết quả quiz, kết quả ghép xương
+  model/           BodySystem, AnatomyPart, PartState, AssemblyLevel
+  resource/        app_colors, app_style (font + theme tối), app_text, app_resource
+  screen/          splash, home, part_search, quiz, assembly_levels, assembly, about
+  service/         AnatomyService, AssetServer, LocalService (get_storage), TtsService
+  utils/           QuizSession, chấm sao ghép xương
 assets/
-  viewer/          trang three.js (index.html, viewer.js, vendor/three r186)
+  viewer/          trang three.js (index.html, viewer.js, vendor/three r186) — gồm chế độ ghép xương
   anatomy/         models/<hệ>.glb (nén meshopt) + parts.json
+  fonts/           Baloo 2, Nunito (OFL)
 tools/anatomy_pipeline/   script tạo assets/anatomy từ BodyParts3D
+test_driver/      smoke test flutter_driver chạy trên simulator
+```
+
+Smoke test trên simulator (chụp ảnh từng bước nếu đặt `SIM_SHOT_DIR`):
+
+```sh
+SIM_ID=<id> SIM_SHOT_DIR=/tmp/shots flutter drive --target test_driver/app.dart \
+  --driver test_driver/app_test.dart -d <id>
 ```
 
 - **Render**: three.js chạy trong `webview_flutter`. Flutter phục vụ trang và GLB qua

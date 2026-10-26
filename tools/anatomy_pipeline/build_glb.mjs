@@ -23,11 +23,19 @@ const toApp = (x, y, z) => [
 
 // Fraction of triangles kept per system; small parts keep more via the error bound.
 const SIMPLIFY_RATIO = {
-  skeletal: 0.2,
-  muscular: 0.15,
+  skeletal: 0.4,
+  muscular: 0.22,
   cardiovascular: 0.15,
   nervous: 0.15,
   default: 0.2,
+};
+
+// Max simplification error (relative to each part's size). Bones and muscles
+// fill the screen most often, so they keep finer surface detail.
+const SIMPLIFY_ERROR = {
+  skeletal: 0.0008,
+  muscular: 0.0012,
+  default: 0.002,
 };
 
 function readObj(file) {
@@ -115,7 +123,7 @@ async function buildSystem(system, parts) {
     simplify({
       simplifier: MeshoptSimplifier,
       ratio: SIMPLIFY_RATIO[system] ?? SIMPLIFY_RATIO.default,
-      error: 0.002,
+      error: SIMPLIFY_ERROR[system] ?? SIMPLIFY_ERROR.default,
     }),
     smoothNormals(),
     meshopt({ encoder: MeshoptEncoder, level: 'medium' }),

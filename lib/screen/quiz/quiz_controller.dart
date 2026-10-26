@@ -12,6 +12,8 @@ import '../../service/local_service.dart';
 import '../../service/tts_service.dart';
 import '../../utils/quiz_session.dart';
 
+enum QuizFeedback { correct, wrong, revealed }
+
 /// "Tap the named part" quiz on one body system (route argument).
 /// The session is mutable, so the view rebuilds through `update()`.
 class QuizController extends GetxController {
@@ -25,6 +27,7 @@ class QuizController extends GetxController {
 
   bool loading = true;
   String? feedback;
+  QuizFeedback? feedbackKind;
   Timer? _advance;
 
   @override
@@ -46,7 +49,7 @@ class QuizController extends GetxController {
 
   void _newSession() {
     session = QuizSession(_anatomy.inSystem(system));
-    feedback = null;
+    _clearFeedback();
   }
 
   void _onEvent(ViewerEvent event) {
@@ -66,10 +69,12 @@ class QuizController extends GetxController {
       case AnswerResult.correct:
         viewer.flash(partId, AppColors.correct, duration: const Duration(milliseconds: 1200));
         feedback = AppText.quizCorrect;
+        feedbackKind = QuizFeedback.correct;
         _scheduleNext(const Duration(milliseconds: 1200));
       case AnswerResult.wrong:
         viewer.flash(partId, AppColors.wrong);
-        feedback = AppText.quizWrong(_anatomy.byId(partId)?.name);
+        feedback = AppText.quizWrong(_anatomy.byId(partId)?.displayName);
+        feedbackKind = QuizFeedback.wrong;
       case AnswerResult.revealed:
         viewer.flash(partId, AppColors.wrong);
         _reveal();
@@ -82,7 +87,13 @@ class QuizController extends GetxController {
     viewer.flash(target.id, AppColors.correct, duration: const Duration(milliseconds: 2200));
     viewer.focus(target.id);
     feedback = AppText.quizRevealed;
+    feedbackKind = QuizFeedback.revealed;
     _scheduleNext(const Duration(milliseconds: 2400));
+  }
+
+  void _clearFeedback() {
+    feedback = null;
+    feedbackKind = null;
   }
 
   void skip() {
@@ -92,6 +103,7 @@ class QuizController extends GetxController {
     update();
   }
 
+  /// Reads the English name aloud (pronunciation practice).
   void speakTarget() {
     if (!session.finished) _tts.speak(session.current.name);
   }
@@ -100,7 +112,7 @@ class QuizController extends GetxController {
     _advance?.cancel();
     _advance = Timer(delay, () {
       session.next();
-      feedback = null;
+      _clearFeedback();
       viewer.resetCamera();
       update();
       if (session.finished) _finish();

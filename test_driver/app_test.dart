@@ -1,5 +1,5 @@
 // Smoke test of the main flows on a booted iOS simulator:
-// SIM_SHOT_DIR=/tmp/shots flutter drive --target test_driver/app.dart \
+// SIM_ID=<simulator-id> SIM_SHOT_DIR=/tmp/shots flutter drive --target test_driver/app.dart \
 //   --driver test_driver/app_test.dart -d <simulator-id>
 //
 // The 3D view is a WebView, so taps on the model are not driven here;
@@ -12,10 +12,11 @@ import 'package:test/test.dart';
 void main() {
   late FlutterDriver driver;
   final shotDir = Platform.environment['SIM_SHOT_DIR'];
+  final simId = Platform.environment['SIM_ID'] ?? 'booted';
 
   Future<void> shot(String name) async {
     if (shotDir == null) return;
-    await Process.run('xcrun', ['simctl', 'io', 'booted', 'screenshot', '$shotDir/$name.png']);
+    await Process.run('xcrun', ['simctl', 'io', simId, 'screenshot', '$shotDir/$name.png']);
   }
 
   Future<void> pause(int ms) => Future<void>.delayed(Duration(milliseconds: ms));
@@ -55,32 +56,72 @@ void main() {
 
   test('quiz runs on the skeleton', () async {
     await driver.tap(find.byTooltip('Đố vui vị trí'));
-    await driver.waitFor(find.text('Xương'));
-    await driver.tap(find.text('Xương'));
-    await driver.waitFor(find.text('Chạm vào:'), timeout: const Duration(seconds: 30));
+    // The home system tiles stay on screen behind the sheet, so match the
+    // picker's own tile.
+    final skeletal = find.descendant(of: find.byType('QuizSystemDialog'), matching: find.text('Xương'));
+    await driver.waitFor(skeletal);
+    await shot('5_quiz_picker');
+    await driver.tap(skeletal);
+    await driver.waitFor(find.text('CHẠM VÀO'), timeout: const Duration(seconds: 30));
     await pause(1000);
-    await shot('5_quiz');
+    await shot('6_quiz');
     await driver.tap(find.text('Bỏ qua'));
     await pause(800);
-    await shot('6_quiz_reveal');
+    await shot('7_quiz_reveal');
     await driver.waitFor(find.text('Câu 2/10'), timeout: const Duration(seconds: 10));
-    await driver.tap(find.pageBack());
+    await driver.tap(find.byTooltip('Back'));
     await driver.waitFor(find.byTooltip('Tìm kiếm'));
   }, timeout: const Timeout(Duration(minutes: 2)));
 
-  test('about screen opens', () async {
-    await driver.tap(find.byTooltip('Thông tin'));
-    await driver.waitFor(find.text('Nguồn dữ liệu'));
-    await shot('7_about');
-    await driver.tap(find.pageBack());
+  test('settings sheet opens from the home header', () async {
+    await driver.tap(find.byTooltip('Cài đặt'));
+    await driver.waitFor(find.text('Chất lượng đồ họa'));
+    await shot('8a_settings');
+    await driver.tap(find.text('Thấp'));
+    await driver.tap(find.text('Cao'));
+    // "Xem lại hướng dẫn" closes the sheet and opens the tutorial.
+    await driver.tap(find.text('Xem lại hướng dẫn'));
+    await driver.waitFor(find.text('Bắt đầu'));
+    await shot('8b_tutorial');
+    await driver.tap(find.text('Bắt đầu'));
+    await driver.waitForAbsent(find.text('Bắt đầu'));
     await driver.waitFor(find.byTooltip('Tìm kiếm'));
   });
 
-  test('systems sheet toggles muscles', () async {
-    await driver.tap(find.byTooltip('Hệ cơ quan'));
+  test('about screen opens', () async {
+    await driver.tap(find.byTooltip('Thông tin'));
+    await driver.waitFor(find.text('Thông tin'));
+    await shot('8_about');
+    await driver.tap(find.byTooltip('Back'));
+    await driver.waitFor(find.byTooltip('Tìm kiếm'));
+  });
+
+  test('system tile toggles muscles', () async {
     await driver.waitFor(find.text('Cơ'));
     await driver.tap(find.text('Cơ'));
     await pause(4000);
-    await shot('8_systems');
+    await shot('9_muscles');
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
+  test('assembly game opens a level and scatters the pieces', () async {
+    await driver.tap(find.text('Ghép xương 3D'));
+    await driver.waitFor(find.text('Chi trên phải'));
+    await shot('10_levels');
+    await driver.tap(find.text('Chi trên phải'));
+    // The how-to-play overlay shows on the first game only.
+    try {
+      await driver.waitFor(find.text('Bắt đầu'), timeout: const Duration(seconds: 3));
+      await shot('11a_tutorial');
+      await driver.tap(find.text('Bắt đầu'));
+    } on DriverError {
+      // Already seen on an earlier run.
+    }
+    await driver.waitFor(find.text('Gợi ý'), timeout: const Duration(seconds: 30));
+    await pause(4000);
+    await shot('11_assembly');
+    await driver.tap(find.byTooltip('Back'));
+    await driver.waitFor(find.text('Chi trên phải'));
+    await driver.tap(find.byTooltip('Back'));
+    await driver.waitFor(find.byTooltip('Tìm kiếm'));
   }, timeout: const Timeout(Duration(minutes: 2)));
 }

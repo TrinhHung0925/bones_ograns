@@ -6,9 +6,8 @@ import 'package:bones_ograns/utils/quiz_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 List<AnatomyPart> _pool(int n) => [
-      for (var i = 0; i < n; i++)
-        AnatomyPart(id: 'P$i', name: 'Part $i', system: BodySystem.skeletal),
-    ];
+  for (var i = 0; i < n; i++) AnatomyPart(id: 'P$i', name: 'Part $i', system: BodySystem.skeletal),
+];
 
 void main() {
   test('picks distinct questions up to the requested length', () {
@@ -54,5 +53,41 @@ void main() {
     session.skip();
     session.next();
     expect(session.finished, isTrue);
+  });
+
+  test('results track scored, missed and unsettled questions', () {
+    final session = QuizSession(_pool(5), length: 4, random: Random(6));
+    expect(session.results, [null, null, null, null]);
+
+    session.answer(session.current.id);
+    session.next();
+    final wrong = session.questions.firstWhere((p) => p != session.current);
+    session.answer(wrong.id);
+    expect(session.results[1], isNull, reason: 'still being answered');
+    session.answer(session.current.id);
+    session.next();
+    session.skip();
+    session.next();
+
+    expect(session.results, [true, false, false, null]);
+  });
+
+  test('results mark a revealed question as missed', () {
+    final session = QuizSession(_pool(5), maxAttempts: 1, random: Random(7));
+    final wrong = session.questions.firstWhere((p) => p != session.current);
+    expect(session.answer(wrong.id), AnswerResult.revealed);
+    expect(session.results.first, isFalse);
+  });
+
+  test('starsFor maps the score to 0-3 stars', () {
+    expect(QuizSession.starsFor(10, 10), 3);
+    expect(QuizSession.starsFor(9, 10), 3);
+    expect(QuizSession.starsFor(8, 10), 2);
+    expect(QuizSession.starsFor(6, 10), 2);
+    expect(QuizSession.starsFor(5, 10), 1);
+    expect(QuizSession.starsFor(3, 10), 1);
+    expect(QuizSession.starsFor(2, 10), 0);
+    expect(QuizSession.starsFor(0, 10), 0);
+    expect(QuizSession.starsFor(0, 0), 0);
   });
 }

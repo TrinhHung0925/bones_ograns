@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 
 import '../../common/anatomy_viewer/anatomy_viewer.dart';
 import '../../dialog/quiz_system_dialog.dart';
-import '../../dialog/systems_dialog.dart';
+import '../../dialog/settings_dialog.dart';
 import '../../model/anatomy_part.dart';
 import '../../model/body_system.dart';
 import '../../model/part_state.dart';
@@ -30,6 +30,23 @@ class HomeController extends GetxController {
 
   bool get isLoading => !ready.value || loadingSystems.isNotEmpty;
   PartState stateOf(String partId) => partStates[partId] ?? PartState.visible;
+
+  /// Systems with parts in the data set, in tile order.
+  late final List<BodySystem> systems = BodySystem.values.where((s) => anatomy.countIn(s) > 0).toList(growable: false);
+
+  /// Parts drawn in the viewer: visible systems minus parts hidden by hand.
+  int get visiblePartCount {
+    var count = 0;
+    for (final system in visibleSystems) {
+      count += anatomy.countIn(system);
+    }
+    for (final entry in partStates.entries) {
+      if (entry.value == PartState.hidden && visibleSystems.contains(anatomy.byId(entry.key)?.system)) {
+        count--;
+      }
+    }
+    return count;
+  }
 
   @override
   void onInit() {
@@ -83,6 +100,8 @@ class HomeController extends GetxController {
     viewer.setSystemVisible(system, visible);
     _local.saveVisibleSystems(visibleSystems);
   }
+
+  void toggleSystem(BodySystem system) => setSystemVisible(system, !visibleSystems.contains(system));
 
   /// Selects a part found by search, revealing its system first if needed.
   void reveal(AnatomyPart part) {
@@ -140,12 +159,11 @@ class HomeController extends GetxController {
 
   void resetCamera() => viewer.resetCamera();
 
+  /// Reads the English name aloud (pronunciation practice).
   void speakSelected() {
     final part = selected.value;
     if (part != null) _tts.speak(part.name);
   }
-
-  void openSystems() => SystemsDialog.show(this);
 
   Future<void> openSearch() async {
     final part = await Get.toNamed(AppPage.partSearch.routeName);
@@ -157,7 +175,11 @@ class HomeController extends GetxController {
     if (system != null) Get.toNamed(AppPage.quiz.routeName, arguments: system);
   }
 
+  void openAssembly() => Get.toNamed(AppPage.assemblyLevels.routeName);
+
   void openAbout() => Get.toNamed(AppPage.about.routeName);
+
+  void openSettings() => SettingsDialog.show();
 
   void onBack() {
     Get.back();

@@ -3,7 +3,8 @@ import 'package:get/get.dart';
 import '../../model/anatomy_part.dart';
 import '../../service/anatomy_service.dart';
 
-/// Searches parts by English name; pops the chosen part as the route result.
+/// Searches parts by Vietnamese or English name (accents optional); pops
+/// the chosen part as the route result.
 class PartSearchController extends GetxController {
   final _anatomy = Get.find<AnatomyService>();
 
@@ -13,8 +14,7 @@ class PartSearchController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    debounce(query, (q) => results.assignAll(_anatomy.search(q)),
-        time: const Duration(milliseconds: 150));
+    debounce(query, (q) => results.assignAll(_anatomy.search(q)), time: const Duration(milliseconds: 150));
   }
 
   void onQueryChanged(String value) => query.value = value;

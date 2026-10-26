@@ -7,6 +7,9 @@ const assetsViewerPath = 'assets/viewer';
 abstract class AnatomyAsset {
   static const String partsJson = '$assetsAnatomyPath/parts.json';
 
+  /// Part id -> Vietnamese name, built by tools/anatomy_pipeline/build_names_vi.py.
+  static const String namesViJson = '$assetsAnatomyPath/names_vi.json';
+
   /// Folders the in-app HTTP server may serve to the viewer WebView.
   static const List<String> servedDirs = ['$assetsViewerPath/', '$assetsAnatomyPath/'];
 

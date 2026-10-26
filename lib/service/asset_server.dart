@@ -44,10 +44,7 @@ class AssetServer extends GetxService {
     try {
       final data = await rootBundle.load(key);
       final ext = key.split('.').last;
-      response.headers.set(
-        HttpHeaders.contentTypeHeader,
-        _contentTypes[ext] ?? 'application/octet-stream',
-      );
+      response.headers.set(HttpHeaders.contentTypeHeader, _contentTypes[ext] ?? 'application/octet-stream');
       response.add(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
     } on FlutterError {
       response.statusCode = HttpStatus.notFound;

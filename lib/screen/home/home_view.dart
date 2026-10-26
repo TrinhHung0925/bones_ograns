@@ -3,10 +3,14 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
 import '../../common/anatomy_viewer/anatomy_viewer.dart';
+import '../../common/game_widgets.dart';
 import '../../common/loading_chip.dart';
+import '../../common/part_name.dart';
 import '../../model/anatomy_part.dart';
+import '../../model/body_system.dart';
 import '../../model/part_state.dart';
 import '../../resource/app_colors.dart';
+import '../../resource/app_style.dart';
 import '../../resource/app_text.dart';
 import 'home_controller.dart';
 
@@ -33,133 +37,176 @@ class _HomeViewState extends State<HomeView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppText.appName, style: TextStyle(fontSize: 20.sp)),
-        actions: [
-          IconButton(
-            tooltip: AppText.search,
-            icon: const Icon(Icons.search),
-            onPressed: controller.openSearch,
-          ),
-          IconButton(
-            tooltip: AppText.quiz,
-            icon: const Icon(Icons.quiz_outlined),
-            onPressed: controller.openQuiz,
-          ),
-          IconButton(
-            tooltip: AppText.info,
-            icon: const Icon(Icons.info_outline),
-            onPressed: controller.openAbout,
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          Positioned.fill(child: AnatomyViewer(bridge: controller.viewer)),
-          SafeArea(
-            top: false,
-            child: Stack(
-              children: [
-                Obx(() => controller.isLoading
-                    ? Positioned(
-                        top: 12.h,
-                        left: 0,
-                        right: 0,
-                        child: const Center(child: LoadingChip()),
-                      )
-                    : const SizedBox.shrink()),
-                Obx(() {
-                  final error = controller.error.value;
-                  if (error == null) return const SizedBox.shrink();
-                  return Positioned(
-                    top: 12.h,
-                    left: 16.w,
-                    right: 16.w,
-                    child: Material(
-                      color: Theme.of(context).colorScheme.errorContainer,
-                      borderRadius: BorderRadius.circular(12.r),
-                      child: Padding(
-                        padding: EdgeInsets.all(12.r),
-                        child: Text(error, style: TextStyle(fontSize: 13.sp)),
-                      ),
-                    ),
-                  );
-                }),
-                Positioned(right: 12.w, top: 12.h, child: _Toolbar(controller: controller)),
-                Positioned(
-                  left: 12.w,
-                  right: 12.w,
-                  bottom: 12.h,
-                  child: Obx(() {
-                    final part = controller.selected.value;
-                    return AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: part == null
-                          ? const _Hint(key: ValueKey('hint'))
-                          : _PartCard(key: ValueKey(part.id), part: part, controller: controller),
-                    );
-                  }),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            GameHeader(
+              title: AppText.appName,
+              subtitle: AppText.appTagline,
+              actions: [
+                GameIconButton(
+                  icon: Icons.search_rounded,
+                  tooltip: AppText.search,
+                  onTap: controller.openSearch,
+                  size: 42,
+                ),
+                GameIconButton(
+                  icon: Icons.settings_rounded,
+                  tooltip: AppText.settings,
+                  onTap: controller.openSettings,
+                  size: 42,
+                ),
+                GameIconButton(
+                  icon: Icons.info_outline_rounded,
+                  tooltip: AppText.info,
+                  onTap: controller.openAbout,
+                  size: 42,
                 ),
               ],
             ),
-          ),
-        ],
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                child: StageFrame(child: _Stage(controller: controller)),
+              ),
+            ),
+            SizedBox(height: 16.h),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: const Align(alignment: Alignment.centerLeft, child: SectionLabel(AppText.bodySystems)),
+            ),
+            _SystemTiles(controller: controller),
+            SizedBox(height: 12.h),
+            _ActionPanel(controller: controller),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _Toolbar extends StatelessWidget {
-  const _Toolbar({required this.controller});
+/// The 3D viewer with its overlays: stats, camera tools and the part card.
+class _Stage extends StatelessWidget {
+  const _Stage({required this.controller});
 
   final HomeController controller;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Obx(() => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                tooltip: AppText.bodySystems,
-                icon: const Icon(Icons.layers_outlined),
-                onPressed: controller.openSystems,
-              ),
-              IconButton(
-                tooltip: AppText.resetCamera,
-                icon: const Icon(Icons.center_focus_strong_outlined),
-                onPressed: controller.resetCamera,
-              ),
-              if (controller.partStates.isNotEmpty)
-                IconButton(
-                  tooltip: AppText.showAll,
-                  icon: const Icon(Icons.visibility_outlined),
-                  onPressed: controller.showAll,
+    return Stack(
+      // Overlays may build a SizedBox.shrink; without expand the Stack would
+      // shrink to it and the WebView would vanish.
+      fit: StackFit.expand,
+      children: [
+        Positioned.fill(child: AnatomyViewer(bridge: controller.viewer)),
+        Positioned(
+          top: 12.h,
+          left: 12.w,
+          child: Obx(
+            () => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const StatPill(text: AppText.live3d, dotColor: AppColors.correct),
+                    SizedBox(width: 6.w),
+                    StatPill(
+                      text: AppText.partCount(controller.visiblePartCount),
+                      icon: Icons.layers_rounded,
+                      iconColor: AppColors.accent,
+                    ),
+                  ],
                 ),
-            ],
-          )),
+                if (controller.isLoading) ...[SizedBox(height: 6.h), const LoadingChip()],
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          top: 12.h,
+          right: 12.w,
+          child: Obx(
+            () => Column(
+              children: [
+                GameIconButton(
+                  icon: Icons.center_focus_strong_rounded,
+                  tooltip: AppText.resetCamera,
+                  onTap: controller.resetCamera,
+                  size: 40,
+                ),
+                if (controller.partStates.isNotEmpty) ...[
+                  SizedBox(height: 8.h),
+                  GameIconButton(
+                    icon: Icons.visibility_rounded,
+                    tooltip: AppText.showAll,
+                    onTap: controller.showAll,
+                    tone: GameTone.primary,
+                    size: 40,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          top: 64.h,
+          left: 12.w,
+          right: 64.w,
+          child: Obx(() {
+            final error = controller.error.value;
+            return error == null ? const SizedBox.shrink() : _ErrorBanner(message: error);
+          }),
+        ),
+        Positioned(
+          left: 10.w,
+          right: 10.w,
+          bottom: 10.h,
+          child: Obx(() {
+            final part = controller.selected.value;
+            return AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween(begin: const Offset(0, 0.15), end: Offset.zero).animate(animation),
+                  child: child,
+                ),
+              ),
+              child: part == null
+                  ? const SizedBox.shrink()
+                  : _PartCard(key: ValueKey(part.id), part: part, controller: controller),
+            );
+          }),
+        ),
+      ],
     );
   }
 }
 
-class _Hint extends StatelessWidget {
-  const _Hint({super.key});
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message});
+
+  final String message;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.hintBackground,
-          borderRadius: BorderRadius.circular(20.r),
-        ),
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
-          child: Text(
-            AppText.viewerHint,
-            style: TextStyle(color: AppColors.hintText, fontSize: 12.sp),
+    return Container(
+      padding: EdgeInsets.all(12.r),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceDepth.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: AppColors.wrong, width: 1.5.r),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.error_outline_rounded, color: AppColors.wrong, size: 20.r),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: Text(message, style: AppStyle.body(13, color: AppColors.textPrimary)),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -174,68 +221,102 @@ class _PartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(16.w, 8.h, 4.w, 8.h),
+    return GameButton(
+      padding: EdgeInsets.fromLTRB(14.w, 12.h, 12.w, 12.h),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              IconBubble(icon: part.system.icon, color: part.system.color, size: 30),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: Text(part.system.label.toUpperCase(), style: AppStyle.label(color: part.system.color)),
+              ),
+              GameIconButton(
+                icon: Icons.close_rounded,
+                tooltip: AppText.close,
+                onTap: controller.clearSelection,
+                tone: GameTone.raised,
+                size: 34,
+              ),
+            ],
+          ),
+          SizedBox(height: 6.h),
+          Row(
+            children: [
+              Expanded(
+                child: PartName(vi: part.displayName, en: part.name, style: AppStyle.display(24)),
+              ),
+              SizedBox(width: 8.w),
+              GameIconButton(
+                icon: Icons.volume_up_rounded,
+                tooltip: AppText.pronounce,
+                onTap: controller.speakSelected,
+                tone: GameTone.primary,
+                size: 40,
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          Obx(() {
+            final ghosted = controller.stateOf(part.id) == PartState.ghost;
+            return Row(
+              children: [
+                _ActionTile(icon: Icons.zoom_in_rounded, label: AppText.zoomIn, onTap: controller.focusSelected),
+                SizedBox(width: 8.w),
+                _ActionTile(icon: Icons.visibility_off_rounded, label: AppText.hide, onTap: controller.hideSelected),
+                SizedBox(width: 8.w),
+                _ActionTile(
+                  icon: Icons.opacity_rounded,
+                  label: ghosted ? AppText.unghost : AppText.ghost,
+                  selected: ghosted,
+                  onTap: controller.toggleGhostSelected,
+                ),
+                SizedBox(width: 8.w),
+                _ActionTile(
+                  icon: Icons.filter_center_focus_rounded,
+                  label: AppText.isolate,
+                  onTap: controller.isolateSelected,
+                ),
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({required this.icon, required this.label, required this.onTap, this.selected = false});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GameButton(
+        tone: GameTone.raised,
+        selected: selected,
+        onTap: onTap,
+        radius: 16,
+        depth: 4,
+        padding: EdgeInsets.symmetric(vertical: 8.h),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.circle, size: 12.r, color: part.system.color),
-                SizedBox(width: 6.w),
-                Text(part.system.label, style: TextStyle(fontSize: 13.sp)),
-                const Spacer(),
-                IconButton(
-                  tooltip: AppText.close,
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.close),
-                  onPressed: controller.clearSelection,
-                ),
-              ],
+            Icon(icon, size: 22.r, color: AppColors.textPrimary),
+            SizedBox(height: 3.h),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppStyle.body(12, color: AppColors.textPrimary, weight: FontWeight.w800),
             ),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    part.name,
-                    style: theme.textTheme.titleLarge?.copyWith(fontSize: 20.sp),
-                  ),
-                ),
-                IconButton(
-                  tooltip: AppText.pronounce,
-                  icon: const Icon(Icons.volume_up_outlined),
-                  onPressed: controller.speakSelected,
-                ),
-              ],
-            ),
-            SizedBox(height: 4.h),
-            Obx(() {
-              final ghosted = controller.stateOf(part.id) == PartState.ghost;
-              return Wrap(
-                spacing: 4.w,
-                children: [
-                  _Action(icon: Icons.zoom_in, label: AppText.zoomIn, onTap: controller.focusSelected),
-                  _Action(
-                    icon: Icons.visibility_off_outlined,
-                    label: AppText.hide,
-                    onTap: controller.hideSelected,
-                  ),
-                  _Action(
-                    icon: Icons.opacity,
-                    label: ghosted ? AppText.unghost : AppText.ghost,
-                    onTap: controller.toggleGhostSelected,
-                  ),
-                  _Action(
-                    icon: Icons.filter_center_focus,
-                    label: AppText.isolate,
-                    onTap: controller.isolateSelected,
-                  ),
-                ],
-              );
-            }),
           ],
         ),
       ),
@@ -243,20 +324,143 @@ class _PartCard extends StatelessWidget {
   }
 }
 
-class _Action extends StatelessWidget {
-  const _Action({required this.icon, required this.label, required this.onTap});
+/// Horizontal row of body system tiles; the outlined ones are drawn.
+class _SystemTiles extends StatelessWidget {
+  const _SystemTiles({required this.controller});
 
-  final IconData icon;
-  final String label;
+  final HomeController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final systems = controller.systems;
+    return SizedBox(
+      height: 98.h,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: 16.w),
+        itemCount: systems.length,
+        separatorBuilder: (_, _) => SizedBox(width: 10.w),
+        itemBuilder: (context, i) => Obx(
+          () => _SystemTile(
+            system: systems[i],
+            visible: controller.visibleSystems.contains(systems[i]),
+            loading: controller.loadingSystems.contains(systems[i]),
+            onTap: () => controller.toggleSystem(systems[i]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SystemTile extends StatelessWidget {
+  const _SystemTile({required this.system, required this.visible, required this.loading, required this.onTap});
+
+  final BodySystem system;
+  final bool visible;
+  final bool loading;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return TextButton.icon(
-      style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-      icon: Icon(icon, size: 18.r),
-      label: Text(label, style: TextStyle(fontSize: 14.sp)),
-      onPressed: onTap,
+    return Align(
+      alignment: Alignment.topCenter,
+      child: GameButton(
+        selected: visible,
+        onTap: onTap,
+        radius: 18,
+        padding: EdgeInsets.symmetric(vertical: 10.h),
+        child: SizedBox(
+          width: 76.w,
+          child: Column(
+            children: [
+              if (loading)
+                SizedBox.square(
+                  dimension: 40.r,
+                  child: Padding(
+                    padding: EdgeInsets.all(8.r),
+                    child: CircularProgressIndicator(strokeWidth: 3, color: system.color),
+                  ),
+                )
+              else
+                IconBubble(icon: system.icon, color: system.color, size: 40),
+              SizedBox(height: 6.h),
+              Text(
+                system.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppStyle.body(
+                  13,
+                  color: visible ? AppColors.textPrimary : AppColors.textSecondary,
+                  weight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom panel with the two game modes.
+class _ActionPanel extends StatelessWidget {
+  const _ActionPanel({required this.controller});
+
+  final HomeController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return BottomPanel(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: GameButton(
+                  tone: GameTone.accent,
+                  onTap: controller.openAssembly,
+                  radius: 20,
+                  depth: 6,
+                  padding: EdgeInsets.symmetric(vertical: 16.h),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.extension_rounded, color: AppColors.onAccent, size: 24.r),
+                      SizedBox(width: 8.w),
+                      Text(AppText.assembly, style: AppStyle.button(18, color: AppColors.onAccent)),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(width: 10.w),
+              Expanded(
+                flex: 2,
+                child: GameButton(
+                  tone: GameTone.primary,
+                  onTap: controller.openQuiz,
+                  tooltip: AppText.quiz,
+                  radius: 20,
+                  depth: 6,
+                  padding: EdgeInsets.symmetric(vertical: 16.h),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.quiz_rounded, color: AppColors.textPrimary, size: 22.r),
+                      SizedBox(width: 6.w),
+                      Text(AppText.quizShort, style: AppStyle.button(18)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 10.h),
+          Text(AppText.viewerHint, style: AppStyle.body(12, color: AppColors.textMuted)),
+        ],
+      ),
     );
   }
 }

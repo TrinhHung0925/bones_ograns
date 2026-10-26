@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'screen/about/about_view.dart';
+import 'screen/assembly/assembly_view.dart';
+import 'screen/assembly_levels/assembly_levels_view.dart';
 import 'screen/home/home_view.dart';
 import 'screen/part_search/part_search_view.dart';
 import 'screen/quiz/quiz_view.dart';
@@ -9,12 +11,7 @@ import 'screen/splash/splash_view.dart';
 
 Route<dynamic> generateRoute(RouteSettings settings) {
   GetPageRoute page(RouteSettings settings, Widget Function() genPage, [Bindings? bindings]) {
-    var page = GetPage(
-      name: settings.name!,
-      page: genPage,
-      arguments: settings.arguments,
-      binding: bindings,
-    );
+    var page = GetPage(name: settings.name!, page: genPage, arguments: settings.arguments, binding: bindings);
     return PageRedirect(route: page, unknownRoute: page).page();
   }
 
@@ -29,6 +26,10 @@ Route<dynamic> generateRoute(RouteSettings settings) {
       return page(settings, () => QuizView());
     case "/about":
       return page(settings, () => AboutView());
+    case "/assemblyLevels":
+      return page(settings, () => AssemblyLevelsView());
+    case "/assembly":
+      return page(settings, () => AssemblyView());
 
     default:
       return page(
@@ -41,13 +42,7 @@ Route<dynamic> generateRoute(RouteSettings settings) {
   }
 }
 
-enum AppPage {
-  splash,
-  home,
-  partSearch,
-  quiz,
-  about,
-}
+enum AppPage { splash, home, partSearch, quiz, about, assemblyLevels, assembly }
 
 extension AppPageExtension on AppPage {
   String get routeName {
@@ -62,6 +57,10 @@ extension AppPageExtension on AppPage {
         return '/${AppPage.quiz.name}';
       case AppPage.about:
         return '/${AppPage.about.name}';
+      case AppPage.assemblyLevels:
+        return '/${AppPage.assemblyLevels.name}';
+      case AppPage.assembly:
+        return '/${AppPage.assembly.name}';
     }
   }
 }
