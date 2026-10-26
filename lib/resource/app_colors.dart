@@ -28,10 +28,16 @@ abstract class AppColors {
   static const Color wrong = Color(0xFFFF5C7A);
   static const Color star = Color(0xFFFFCB4C);
 
-  /// Body systems; keep in sync with SYSTEM_COLORS in assets/viewer/viewer.js.
+  /// Body systems (tiles and badges; the 3D materials live in assets/viewer/materials.js).
   static const Color skeletal = Color(0xFFE9DFC9);
+
+  /// Cartilage: pale, cool blue-white, apart from the warm bone and the saturated sensory blue.
+  static const Color joint = Color(0xFFBFE2F2);
   static const Color muscular = Color(0xFFE0675C);
   static const Color cardiovascular = Color(0xFFFF4D5E);
+
+  /// Lymph green, yellower than the quiz "correct" green.
+  static const Color lymphatic = Color(0xFF9AD66B);
   static const Color nervous = Color(0xFFF0C94C);
   static const Color respiratory = Color(0xFFF29BB0);
   static const Color digestive = Color(0xFFF09A6E);

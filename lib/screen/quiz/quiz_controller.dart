@@ -9,6 +9,7 @@ import '../../resource/app_colors.dart';
 import '../../resource/app_text.dart';
 import '../../service/anatomy_service.dart';
 import '../../service/local_service.dart';
+import '../../service/progress_service.dart';
 import '../../service/tts_service.dart';
 import '../../utils/quiz_session.dart';
 
@@ -19,6 +20,7 @@ enum QuizFeedback { correct, wrong, revealed }
 class QuizController extends GetxController {
   final _anatomy = Get.find<AnatomyService>();
   final _local = Get.find<LocalService>();
+  final _progress = Get.find<ProgressService>();
   final _tts = Get.find<TtsService>();
   final viewer = ViewerBridge();
   late final StreamSubscription<ViewerEvent> _sub;
@@ -84,6 +86,7 @@ class QuizController extends GetxController {
 
   void _reveal() {
     final target = session.current;
+    _progress.addMistake(target.id);
     viewer.flash(target.id, AppColors.correct, duration: const Duration(milliseconds: 2200));
     viewer.focus(target.id);
     feedback = AppText.quizRevealed;
@@ -121,6 +124,7 @@ class QuizController extends GetxController {
 
   Future<void> _finish() async {
     final isNewBest = await _local.saveQuizScore(system, session.score);
+    await _progress.addXp(session.score * ProgressService.xpPerCorrect);
     final again = await QuizResultDialog.show(
       score: session.score,
       total: session.length,

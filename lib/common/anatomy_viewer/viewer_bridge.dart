@@ -191,6 +191,9 @@ class ViewerBridge {
 
   void zoomOut() => _call('zoomBy', [1.43]);
 
+  /// One-finger drag pans (like moving a photo) instead of rotating.
+  void setPanMode(bool pan) => _call('setDragMode', [pan ? 'pan' : 'rotate']);
+
   void flash(String partId, Color color, {Duration duration = const Duration(milliseconds: 900)}) {
     final hex = '#${(color.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
     _call('flash', [partId, hex, duration.inMilliseconds]);

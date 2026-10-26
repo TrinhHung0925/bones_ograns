@@ -4,7 +4,14 @@ import 'package:get/get.dart';
 import 'screen/about/about_view.dart';
 import 'screen/assembly/assembly_view.dart';
 import 'screen/assembly_levels/assembly_levels_view.dart';
+import 'screen/daily/daily_view.dart';
+import 'screen/exam/exam_view.dart';
+import 'screen/exam_setup/exam_setup_view.dart';
 import 'screen/home/home_view.dart';
+import 'screen/learn_hub/learn_hub_view.dart';
+import 'screen/lesson/lesson_view.dart';
+import 'screen/lessons/lessons_view.dart';
+import 'screen/mistakes/mistakes_view.dart';
 import 'screen/part_search/part_search_view.dart';
 import 'screen/quiz/quiz_view.dart';
 import 'screen/splash/splash_view.dart';
@@ -30,6 +37,20 @@ Route<dynamic> generateRoute(RouteSettings settings) {
       return page(settings, () => AssemblyLevelsView());
     case "/assembly":
       return page(settings, () => AssemblyView());
+    case "/daily":
+      return page(settings, () => DailyView());
+    case "/examSetup":
+      return page(settings, () => ExamSetupView());
+    case "/exam":
+      return page(settings, () => ExamView());
+    case "/mistakes":
+      return page(settings, () => MistakesView());
+    case "/learnHub":
+      return page(settings, () => LearnHubView());
+    case "/lessons":
+      return page(settings, () => LessonsView());
+    case "/lesson":
+      return page(settings, () => LessonView());
 
     default:
       return page(
@@ -42,7 +63,7 @@ Route<dynamic> generateRoute(RouteSettings settings) {
   }
 }
 
-enum AppPage { splash, home, partSearch, quiz, about, assemblyLevels, assembly }
+enum AppPage { splash, home, partSearch, quiz, about, assemblyLevels, assembly, daily, examSetup, exam, mistakes, learnHub, lessons, lesson }
 
 extension AppPageExtension on AppPage {
   String get routeName {
@@ -61,6 +82,20 @@ extension AppPageExtension on AppPage {
         return '/${AppPage.assemblyLevels.name}';
       case AppPage.assembly:
         return '/${AppPage.assembly.name}';
+      case AppPage.daily:
+        return '/${AppPage.daily.name}';
+      case AppPage.examSetup:
+        return '/${AppPage.examSetup.name}';
+      case AppPage.exam:
+        return '/${AppPage.exam.name}';
+      case AppPage.mistakes:
+        return '/${AppPage.mistakes.name}';
+      case AppPage.learnHub:
+        return '/${AppPage.learnHub.name}';
+      case AppPage.lessons:
+        return '/${AppPage.lessons.name}';
+      case AppPage.lesson:
+        return '/${AppPage.lesson.name}';
     }
   }
 }

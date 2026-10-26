@@ -10,6 +10,7 @@ import '../../model/assembly_level.dart';
 import '../../model/assembly_piece.dart';
 import '../../service/anatomy_service.dart';
 import '../../service/local_service.dart';
+import '../../service/progress_service.dart';
 import '../../service/tts_service.dart';
 import '../../utils/assembly_score.dart';
 
@@ -29,6 +30,7 @@ class AssemblyController extends GetxController {
 
   final _anatomy = Get.find<AnatomyService>();
   final _local = Get.find<LocalService>();
+  final _progress = Get.find<ProgressService>();
   final _tts = Get.find<TtsService>();
   final viewer = ViewerBridge();
   late final StreamSubscription<ViewerEvent> _sub;
@@ -297,6 +299,7 @@ class AssemblyController extends GetxController {
       seconds: time.inSeconds,
       score: total,
     );
+    await _progress.addXp(stars * ProgressService.xpPerStar + placed);
     // Let the celebration in the viewer play before the dialog covers it.
     final shown = Completer<void>();
     _resultDelay = Timer(const Duration(milliseconds: 1600), shown.complete);

@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import 'package:scroll_to_index/scroll_to_index.dart';
 
 import '../../common/anatomy_viewer/anatomy_viewer.dart';
 import '../../dialog/quiz_system_dialog.dart';
@@ -11,6 +13,7 @@ import '../../model/part_state.dart';
 import '../../route.dart';
 import '../../service/anatomy_service.dart';
 import '../../service/local_service.dart';
+import '../../service/progress_service.dart';
 import '../../service/tts_service.dart';
 
 /// Explore screen; its state mirrors what the viewer is showing.
@@ -18,7 +21,11 @@ class HomeController extends GetxController {
   final anatomy = Get.find<AnatomyService>();
   final _local = Get.find<LocalService>();
   final _tts = Get.find<TtsService>();
+  final progress = Get.find<ProgressService>();
   final viewer = ViewerBridge();
+
+  /// Horizontal row of system tiles; scrolls the toggled/revealed tile to the middle.
+  final tileScroll = AutoScrollController(axis: Axis.horizontal);
   late final StreamSubscription<ViewerEvent> _sub;
 
   final visibleSystems = <BodySystem>{}.obs;
@@ -29,6 +36,12 @@ class HomeController extends GetxController {
   final error = RxnString();
 
   bool get isLoading => !ready.value || loadingSystems.isNotEmpty;
+
+  /// Nothing to look at yet: the page or every visible system is loading.
+  bool get isFirstLoad => !ready.value || visibleSystems.every(loadingSystems.contains);
+
+  /// Systems being loaded, for the loading screen ("Xương · Cơ").
+  String get loadingLabel => (loadingSystems.isEmpty ? visibleSystems : loadingSystems).map((s) => s.label).join(' · ');
   PartState stateOf(String partId) => partStates[partId] ?? PartState.visible;
 
   /// Systems with parts in the data set, in tile order.
@@ -59,7 +72,15 @@ class HomeController extends GetxController {
   }
 
   @override
+  void onReady() {
+    super.onReady();
+    final first = systems.where(visibleSystems.contains).firstOrNull;
+    if (first != null) scrollToSystem(first);
+  }
+
+  @override
   void onClose() {
+    tileScroll.dispose();
     _sub.cancel();
     viewer.dispose();
     super.onClose();
@@ -101,7 +122,17 @@ class HomeController extends GetxController {
     _local.saveVisibleSystems(visibleSystems);
   }
 
-  void toggleSystem(BodySystem system) => setSystemVisible(system, !visibleSystems.contains(system));
+  void toggleSystem(BodySystem system) {
+    setSystemVisible(system, !visibleSystems.contains(system));
+    scrollToSystem(system);
+  }
+
+  /// Animates [system]'s tile to the middle of the tile row.
+  void scrollToSystem(BodySystem system) {
+    final index = systems.indexOf(system);
+    if (index < 0 || !tileScroll.hasClients) return;
+    tileScroll.scrollToIndex(index, preferPosition: AutoScrollPosition.middle);
+  }
 
   /// Selects a part found by search, revealing its system first if needed.
   void reveal(AnatomyPart part) {
@@ -109,6 +140,7 @@ class HomeController extends GetxController {
     if (stateOf(part.id) != PartState.visible) setPartState(part.id, PartState.visible);
     _select(part);
     viewer.focus(part.id);
+    scrollToSystem(part.system);
   }
 
   void clearSelection() => _select(null);
@@ -176,6 +208,8 @@ class HomeController extends GetxController {
   }
 
   void openAssembly() => Get.toNamed(AppPage.assemblyLevels.routeName);
+
+  void openLearn() => Get.toNamed(AppPage.learnHub.routeName);
 
   void openAbout() => Get.toNamed(AppPage.about.routeName);
 

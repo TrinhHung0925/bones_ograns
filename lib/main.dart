@@ -9,6 +9,7 @@ import 'resource/app_style.dart';
 import 'resource/app_text.dart';
 import 'route.dart';
 import 'service/local_service.dart';
+import 'service/progress_service.dart';
 import 'service/tts_service.dart';
 
 Future<void> main() async {
@@ -21,6 +22,7 @@ Future<void> main() async {
   });
   await GetStorage.init();
   Get.put(LocalService(), permanent: true);
+  Get.put(ProgressService(), permanent: true);
   Get.put(TtsService(), permanent: true);
   runApp(const MyApp());
 }

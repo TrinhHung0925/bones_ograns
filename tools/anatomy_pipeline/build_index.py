@@ -16,8 +16,10 @@ import sys
 # Order matters: the first system whose rule matches wins.
 SYSTEMS = [
     'skeletal',
+    'joint',
     'muscular',
     'cardiovascular',
+    'lymphatic',
     'nervous',
     'respiratory',
     'digestive',
@@ -43,6 +45,8 @@ PARTOF_SYSTEM = {
 
 # Name patterns -> system, checked before anything else to fix FMA misplacements.
 NAME_OVERRIDES = [
+    # Lymphoid organs (the joint and lymphatic systems also get Z-Anatomy parts).
+    (r'^spleen$|\bthymus\b', 'lymphatic'),
     (r'hepatovenous segment|caudate lobe of liver|biliary', 'digestive'),
     (r'branches of thoracic aorta', 'cardiovascular'),
     # FMA files the calcaneal tendon under skeletal ligaments; it belongs with its muscles.
@@ -62,7 +66,6 @@ NAME_SYSTEM = [
      r'|tendon|tendinous|iliotibial|linea alba|retinaculum|raphe|interosseous membrane', 'muscular'),
     (r'penis|testis|epididymis|deferent|seminal', 'reproductive'),
     (r'liver|hepat|sublingual|pharyn|oesophag', 'digestive'),
-    (r'thymus', 'endocrine'),
 ]
 
 # is_a ancestors -> system, checked when part_of gives no answer.

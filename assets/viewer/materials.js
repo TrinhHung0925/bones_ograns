@@ -40,6 +40,8 @@ const ORGAN_COLORS = [
 ];
 
 const SYSTEM_DEFAULT = {
+  joint: 0xcfdde6,
+  lymphatic: 0xb3a66e,
   digestive: 0xe0998a,
   respiratory: 0xe7a1a8,
   urinary: 0x9c4a3c,
@@ -53,6 +55,9 @@ const VEIN_RE = /vein|venous|sinus|vena/i;
 const TOOTH_RE = /tooth|incisor|canine|molar|premolar|dent/i;
 const CARTILAGE_RE = /cartilage|disc|menisc|symphysis|labrum/i;
 const TENDON_RE = /tendon|aponeuros|retinaculum|fascia|interosseous membrane|ligament|sheath/i;
+// Joint system: fibrocartilage pads, and the fibrous tissue holding joints together.
+const FIBROCARTILAGE_RE = /menisc|disc|symphysis|labrum|annulus|nucleus pulposus/i;
+const JOINT_FIBROUS_RE = /ligament|capsule|membrane|bursa|retinaculum|sheath|fascia|tendon|band|tract/i;
 
 /** Material preset for a part, from its system and English name. */
 function preset(system, name) {
@@ -82,6 +87,33 @@ function preset(system, name) {
         return { kind: KIND.NERVE, color: 0xf0cf5e, roughness: 0.45, clearcoat: 0.3, clearcoatRoughness: 0.3, sheen: 0.5, sheenColor: 0xfff2b0 };
       }
       return organPreset(system, name);
+    case 'joint':
+      if (FIBROCARTILAGE_RE.test(name)) {
+        // Menisci and discs: whiter and denser than hyaline cartilage, still moist.
+        return { kind: KIND.ORGAN, color: 0xeceee8, roughness: 0.4, clearcoat: 0.55, clearcoatRoughness: 0.25, sheen: 0.35, sheenColor: 0xffffff, emissive: 0x0b0d10 };
+      }
+      if (JOINT_FIBROUS_RE.test(name)) {
+        // Ligaments, capsules, membranes: pearly white with a fibrous grain.
+        return { kind: KIND.TENDON, color: 0xebe7dc, roughness: 0.36, clearcoat: 0.4, clearcoatRoughness: 0.28, sheen: 0.75, sheenColor: 0xf2f6ff, sheenRoughness: 0.35 };
+      }
+      // Hyaline (articular) cartilage: glossy bluish-white; a faint cool
+      // self-glow fakes the light scattering that makes it look translucent.
+      return { kind: KIND.ORGAN, color: 0xc9d9e3, roughness: 0.22, clearcoat: 0.9, clearcoatRoughness: 0.1, sheen: 0.55, sheenColor: 0xd3e9ff, sheenRoughness: 0.3, emissive: 0x13202c };
+    case 'lymphatic':
+      if (/spleen|splenic/i.test(name)) {
+        return { kind: KIND.ORGAN, color: 0x6b2537, roughness: 0.4, clearcoat: 0.8, clearcoatRoughness: 0.2 };
+      }
+      if (/thymus/i.test(name)) {
+        return { kind: KIND.ORGAN, color: 0xcdb3b0, roughness: 0.5, clearcoat: 0.5, clearcoatRoughness: 0.3, sheen: 0.3, sheenColor: 0xf3dcd8 };
+      }
+      if (/tonsil|adenoid/i.test(name)) {
+        return { kind: KIND.ORGAN, color: 0xd9858a, roughness: 0.45, clearcoat: 0.7, clearcoatRoughness: 0.22 };
+      }
+      if (/duct|trunk|vessel|cistern|lymphatic/i.test(name)) {
+        return { kind: KIND.VESSEL, color: 0xc4b97c, roughness: 0.34, clearcoat: 0.7, clearcoatRoughness: 0.2 };
+      }
+      // Lymph nodes: greenish-tan, slightly waxy.
+      return { kind: KIND.ORGAN, color: 0xb3a66e, roughness: 0.46, clearcoat: 0.6, clearcoatRoughness: 0.25, sheen: 0.3, sheenColor: 0xe6f0c0 };
     case 'integumentary':
       if (/hair|eyebrow/i.test(name)) return { kind: KIND.SKIN, color: 0x3a2a22, roughness: 0.6 };
       return { kind: KIND.SKIN, color: 0xe7b594, roughness: 0.5, sheen: 0.5, sheenColor: 0xffd6c0, sheenRoughness: 0.5 };
@@ -274,6 +306,7 @@ export function createPartMaterial(system, name, geometry) {
     side: system === 'integumentary' ? THREE.FrontSide : THREE.DoubleSide,
     envMapIntensity: p.kind === KIND.BONE ? 0.85 : 1.0,
   });
+  if (p.emissive) mat.emissive.set(p.emissive);
   if (physical) {
     mat.userData.full = {
       clearcoat: p.clearcoat ?? 0,

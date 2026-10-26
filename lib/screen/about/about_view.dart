@@ -78,6 +78,12 @@ class _AboutViewState extends State<AboutView> {
                   ),
                   SizedBox(height: 12.h),
                   _InfoCard(
+                    icon: Icons.menu_book_rounded,
+                    color: AppColors.joint,
+                    children: [Text(AppText.zAnatomyCredit, style: body)],
+                  ),
+                  SizedBox(height: 12.h),
+                  _InfoCard(
                     icon: Icons.code_rounded,
                     color: AppColors.sensory,
                     children: [Text(AppText.rendererCredit, style: body)],

@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
-import '../../common/zoom_buttons.dart';
+import '../../common/model_loading.dart';
+import '../../common/view_controls.dart';
 import '../../common/anatomy_viewer/anatomy_viewer.dart';
 import '../../common/assembly_tutorial.dart';
 import '../../common/game_widgets.dart';
-import '../../common/loading_chip.dart';
 import '../../common/part_name.dart';
 import '../../common/star_row.dart';
 import '../../model/assembly_level.dart';
@@ -38,80 +38,19 @@ class _AssemblyViewState extends State<AssemblyView> {
 
   @override
   Widget build(BuildContext context) {
+    // Immersive layout: the 3D stage fills the whole screen and the controls
+    // float over it, so as much of the screen as possible is play area.
     return Scaffold(
       body: Stack(
-        // The tutorial builder may return a SizedBox.shrink; expand keeps the
-        // game (and its WebView) full size.
+        // Builders may return a SizedBox.shrink; expand keeps the stage (and
+        // its WebView) full size.
         fit: StackFit.expand,
         children: [
-          SafeArea(
-            bottom: false,
-            child: Column(
-              children: [
-                GetBuilder<AssemblyController>(
-                  builder: (controller) => GameHeader(
-                    title: controller.level.title,
-                    subtitle: [
-                      controller.level.difficulty.label,
-                      if (controller.detail != null) controller.detail!.label,
-                      AppText.assemblyPieces(controller.pieces.length),
-                    ].join(' · '),
-                    onBack: controller.onBack,
-                    actions: [
-                      GameIconButton(
-                        icon: Icons.question_mark_rounded,
-                        tooltip: AppText.assemblyHelp,
-                        onTap: controller.openTutorial,
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 10.h),
-                  child: GetBuilder<AssemblyController>(builder: (controller) => _Hud(controller: controller)),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.w),
-                    child: StageFrame(child: _Stage(controller: controller)),
-                  ),
-                ),
-                SizedBox(height: 12.h),
-                BottomPanel(
-                  child: GetBuilder<AssemblyController>(
-                    builder: (controller) => Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _NameBanner(controller: controller),
-                        SizedBox(height: 12.h),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _PanelButton(
-                                label: AppText.assemblyHintCount(controller.hints),
-                                icon: Icons.lightbulb_rounded,
-                                tone: GameTone.accent,
-                                onTap: controller.loading || controller.finished ? null : controller.hint,
-                              ),
-                            ),
-                            SizedBox(width: 10.w),
-                            Expanded(
-                              child: _PanelButton(
-                                label: AppText.assemblyRestart,
-                                icon: Icons.replay_rounded,
-                                tone: GameTone.surface,
-                                onTap: controller.loading ? null : controller.restart,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _Stage(controller: controller),
+          const _Scrim(top: true),
+          const _Scrim(top: false),
+          Positioned(top: 0, left: 0, right: 0, child: _TopBar(controller: controller)),
+          Positioned(left: 0, right: 0, bottom: 0, child: _BottomBar(controller: controller)),
           GetBuilder<AssemblyController>(
             builder: (controller) => AnimatedSwitcher(
               duration: const Duration(milliseconds: 220),
@@ -121,6 +60,158 @@ class _AssemblyViewState extends State<AssemblyView> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Darkens the screen edge behind a floating bar so its text stays readable;
+/// never blocks touches on the stage.
+class _Scrim extends StatelessWidget {
+  const _Scrim({required this.top});
+
+  final bool top;
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = top ? MediaQuery.paddingOf(context).top : MediaQuery.paddingOf(context).bottom;
+    final colors = [AppColors.background.withValues(alpha: 0.88), AppColors.background.withValues(alpha: 0)];
+    return Positioned(
+      top: top ? 0 : null,
+      bottom: top ? null : 0,
+      left: 0,
+      right: 0,
+      height: inset + (top ? 120 : 130).h,
+      child: IgnorePointer(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: top ? Alignment.topCenter : Alignment.bottomCenter,
+              end: top ? Alignment.bottomCenter : Alignment.topCenter,
+              colors: colors,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Back, level title, help, then the HUD.
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.controller});
+
+  final AssemblyController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(12.w, 4.h, 12.w, 0),
+        child: GetBuilder<AssemblyController>(
+          builder: (controller) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  GameIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: AppText.back,
+                    onTap: controller.onBack,
+                    size: 38,
+                  ),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          controller.level.title,
+                          style: AppStyle.title(20),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          [
+                            controller.level.difficulty.label,
+                            if (controller.detail != null) controller.detail!.label,
+                            AppText.assemblyPieces(controller.pieces.length),
+                          ].join(' · '),
+                          style: AppStyle.body(12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  GameIconButton(
+                    icon: Icons.question_mark_rounded,
+                    tooltip: AppText.assemblyHelp,
+                    onTap: controller.openTutorial,
+                    size: 38,
+                  ),
+                ],
+              ),
+              SizedBox(height: 8.h),
+              _Hud(controller: controller),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Name of the grabbed piece, then the hint and restart buttons.
+class _BottomBar extends StatelessWidget {
+  const _BottomBar({required this.controller});
+
+  final AssemblyController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 8.h),
+        child: GetBuilder<AssemblyController>(
+          builder: (controller) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: EdgeInsets.fromLTRB(8.w, 6.h, 6.w, 6.h),
+                decoration: BoxDecoration(
+                  color: AppColors.surface.withValues(alpha: 0.88),
+                  borderRadius: BorderRadius.circular(18.r),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: _NameBanner(controller: controller),
+              ),
+              SizedBox(height: 8.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: _PanelButton(
+                      label: AppText.assemblyHintCount(controller.hints),
+                      icon: Icons.lightbulb_rounded,
+                      tone: GameTone.accent,
+                      onTap: controller.loading || controller.finished ? null : controller.hint,
+                    ),
+                  ),
+                  SizedBox(width: 10.w),
+                  GameIconButton(
+                    icon: Icons.replay_rounded,
+                    tooltip: AppText.assemblyRestart,
+                    onTap: controller.loading ? null : controller.restart,
+                    size: 46,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -166,7 +257,8 @@ class _Hud extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: AnimatedFractionallySizedBox(
             duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutBack,
+            // No overshoot: going back to 0 on restart must never dip below it.
+            curve: Curves.easeOutCubic,
             widthFactor: progress.clamp(0.0, 1.0),
             child: Container(
               decoration: BoxDecoration(color: AppColors.correct, borderRadius: BorderRadius.circular(999)),
@@ -216,23 +308,22 @@ class _Stage extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         Positioned.fill(child: AnatomyViewer(bridge: controller.viewer)),
+        // Centred on the right edge, clear of the floating top and bottom bars.
         Positioned(
-          right: 12.w,
-          bottom: 12.h,
-          child: ZoomButtons(bridge: controller.viewer),
+          right: 10.w,
+          top: 0,
+          bottom: 0,
+          child: Center(child: ViewControls(bridge: controller.viewer)),
         ),
         GetBuilder<AssemblyController>(
           builder: (controller) => controller.loading && !controller.showIntro
-              ? Positioned(
-                  top: 12.h,
-                  left: 0,
-                  right: 0,
-                  child: const Center(child: LoadingChip()),
+              ? Positioned.fill(
+                  child: Center(child: ModelLoading(detail: controller.level.systems.map((s) => s.label).join(' · '))),
                 )
               : const SizedBox.shrink(),
         ),
         Positioned(
-          top: 14.h,
+          top: MediaQuery.paddingOf(context).top + 130.h,
           left: 0,
           right: 0,
           child: IgnorePointer(
@@ -406,7 +497,7 @@ class _NameBanner extends StatelessWidget {
       duration: const Duration(milliseconds: 180),
       child: SizedBox(
         key: ValueKey('${piece?.id}-${controller.focusedByHint}'),
-        height: 52.h,
+        height: 44.h,
         child: piece == null
             ? Row(
                 children: [
@@ -458,7 +549,7 @@ class _PanelButton extends StatelessWidget {
       tone: tone,
       onTap: onTap,
       radius: 18,
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 13.h),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 11.h),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

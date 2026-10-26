@@ -19,7 +19,7 @@ enum AssemblyDifficulty {
 /// player choose, e.g. a whole arm as 4 big blocks or as every single bone.
 enum AssemblyDetail {
   coarse('Cụm lớn', 'Ít mảnh to: mỗi mảnh là cả một vùng'),
-  medium('Vừa', 'Xương lớn riêng, bàn tay/bàn chân chia theo ngón'),
+  medium('Tiêu chuẩn', 'Xương lớn riêng, bàn tay/bàn chân chia theo ngón'),
   fine('Chi tiết', 'Từng xương riêng lẻ');
 
   const AssemblyDetail(this.label, this.description);

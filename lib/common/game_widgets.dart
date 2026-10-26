@@ -148,7 +148,8 @@ class GameHeader extends StatelessWidget {
   }
 }
 
-/// Rounded frame that hosts the 3D viewer, like a game stage.
+/// Edge-to-edge band that hosts the 3D viewer, like a game stage: full
+/// screen width, hairlines above and below.
 class StageFrame extends StatelessWidget {
   const StageFrame({super.key, required this.child});
 
@@ -156,13 +157,13 @@ class StageFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(26.r);
+    final line = BorderSide(color: AppColors.border, width: 1.r);
     return DecoratedBox(
+      position: DecorationPosition.foreground,
       decoration: BoxDecoration(
-        borderRadius: radius,
-        border: Border.all(color: AppColors.border, width: 1.5.r),
+        border: Border(top: line, bottom: line),
       ),
-      child: ClipRRect(borderRadius: radius, child: child),
+      child: ClipRect(child: child),
     );
   }
 }

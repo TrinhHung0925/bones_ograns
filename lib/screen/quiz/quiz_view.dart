@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
-import '../../common/zoom_buttons.dart';
+import '../../common/model_loading.dart';
+import '../../common/view_controls.dart';
 import '../../common/anatomy_viewer/anatomy_viewer.dart';
 import '../../common/game_widgets.dart';
-import '../../common/loading_chip.dart';
 import '../../common/part_name.dart';
 import '../../resource/app_colors.dart';
 import '../../resource/app_style.dart';
@@ -65,29 +65,24 @@ class _QuizViewState extends State<QuizView> {
             ),
             SizedBox(height: 14.h),
             Expanded(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
-                child: StageFrame(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Positioned.fill(child: AnatomyViewer(bridge: controller.viewer)),
-                      Positioned(
-                        right: 12.w,
-                        bottom: 12.h,
-                        child: ZoomButtons(bridge: controller.viewer),
+              child: StageFrame(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Positioned.fill(child: AnatomyViewer(bridge: controller.viewer)),
+                    Positioned(
+                      right: 12.w,
+                      bottom: 12.h,
+                      child: ViewControls(bridge: controller.viewer),
+                    ),
+                    Positioned.fill(
+                      child: GetBuilder<QuizController>(
+                        builder: (controller) => controller.loading
+                            ? Center(child: ModelLoading(detail: controller.system.label))
+                            : const SizedBox.shrink(),
                       ),
-                      Positioned(
-                        top: 12.h,
-                        left: 0,
-                        right: 0,
-                        child: GetBuilder<QuizController>(
-                          builder: (controller) =>
-                              controller.loading ? const Center(child: LoadingChip()) : const SizedBox.shrink(),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),

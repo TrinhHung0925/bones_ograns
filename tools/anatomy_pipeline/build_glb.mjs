@@ -1,7 +1,9 @@
 // Converts BodyParts3D OBJ elements into one compressed GLB per body system,
-// plus the parts index the app reads.
+// plus the parts index the app reads. Extra parts prepared by
+// build_zanatomy.mjs (already in the app frame and simplified) are appended
+// to their systems after the BodyParts3D parts, which stay exactly as built.
 //
-// Usage: node build_glb.mjs <raw_dir> <parts_json> <out_assets_dir>
+// Usage: node build_glb.mjs <raw_dir> <parts_json> <out_assets_dir> [extra_parts_json]
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,7 +12,7 @@ import { EXTMeshoptCompression, KHRMeshQuantization } from '@gltf-transform/exte
 import { meshopt, simplify, weld } from '@gltf-transform/functions';
 import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
 
-const [rawDir, partsJson, outDir] = process.argv.slice(2);
+const [rawDir, partsJson, outDir, extraJson] = process.argv.slice(2);
 
 // BodyParts3D is in millimetres, Z up, anterior towards -Y.
 // The app wants metres, Y up, anterior towards +Z, body centred on the origin.
@@ -91,7 +93,7 @@ function groupParts(elements) {
   return [...parts.values()];
 }
 
-async function buildSystem(system, parts) {
+async function buildSystem(system, parts, extras) {
   const doc = new Document();
   const buffer = doc.createBuffer();
   const scene = doc.createScene(system);
@@ -118,13 +120,25 @@ async function buildSystem(system, parts) {
 
   await MeshoptEncoder.ready;
   await MeshoptSimplifier.ready;
+  if (parts.length) {
+    await doc.transform(
+      weld(),
+      simplify({
+        simplifier: MeshoptSimplifier,
+        ratio: SIMPLIFY_RATIO[system] ?? SIMPLIFY_RATIO.default,
+        error: SIMPLIFY_ERROR[system] ?? SIMPLIFY_ERROR.default,
+      }),
+    );
+  }
+  for (const part of extras) {
+    const prim = doc.createPrimitive()
+      .setAttribute('POSITION', doc.createAccessor().setType('VEC3').setArray(part.positions).setBuffer(buffer))
+      .setIndices(doc.createAccessor().setType('SCALAR').setArray(part.indices).setBuffer(buffer))
+      .setMaterial(material);
+    const mesh = doc.createMesh(part.id).addPrimitive(prim);
+    scene.addChild(doc.createNode(part.id).setMesh(mesh).setExtras({ name: part.name }));
+  }
   await doc.transform(
-    weld(),
-    simplify({
-      simplifier: MeshoptSimplifier,
-      ratio: SIMPLIFY_RATIO[system] ?? SIMPLIFY_RATIO.default,
-      error: SIMPLIFY_ERROR[system] ?? SIMPLIFY_ERROR.default,
-    }),
     smoothNormals(),
     meshopt({ encoder: MeshoptEncoder, level: 'medium' }),
   );
@@ -140,20 +154,38 @@ async function buildSystem(system, parts) {
     for (const prim of mesh.listPrimitives()) triangles += prim.getIndices().getCount() / 3;
   }
   const kb = Math.round(fs.statSync(out).size / 1024);
-  console.log(`${system.padEnd(15)} parts=${parts.length} tris=${triangles} size=${kb}KB`);
+  console.log(`${system.padEnd(15)} parts=${String(parts.length + extras.length).padStart(4)} ` +
+    `(+${extras.length}) tris=${String(triangles).padStart(7)} size=${String(kb).padStart(5)}KB`);
+  return kb;
 }
 
 const elements = JSON.parse(fs.readFileSync(partsJson, 'utf8'));
 const parts = groupParts(elements);
 fs.mkdirSync(path.join(outDir, 'models'), { recursive: true });
 
-const bySystem = new Map();
-for (const part of parts) {
-  if (!bySystem.has(part.system)) bySystem.set(part.system, []);
-  bySystem.get(part.system).push(part);
+// Extra parts: positions and indices live in a binary file next to the JSON.
+const extras = [];
+if (extraJson) {
+  const bin = fs.readFileSync(extraJson.replace(/\.json$/, '.bin'));
+  const view = (Type, [offset, length]) => new Type(bin.buffer.slice(bin.byteOffset + offset,
+    bin.byteOffset + offset + length * Type.BYTES_PER_ELEMENT));
+  for (const p of JSON.parse(fs.readFileSync(extraJson, 'utf8'))) {
+    extras.push({ id: p.id, name: p.name, system: p.system,
+      positions: view(Float32Array, p.positions), indices: view(Uint32Array, p.indices) });
+  }
 }
-for (const [system, list] of bySystem) await buildSystem(system, list);
 
-const index = parts.map(({ id, name, system }) => ({ id, name, system }));
+const bySystem = new Map();
+const group = (part, key) => {
+  if (!bySystem.has(part.system)) bySystem.set(part.system, { parts: [], extras: [] });
+  bySystem.get(part.system)[key].push(part);
+};
+parts.forEach((p) => group(p, 'parts'));
+extras.forEach((p) => group(p, 'extras'));
+let totalKb = 0;
+for (const [system, { parts: list, extras: more }] of bySystem) totalKb += await buildSystem(system, list, more);
+console.log(`total          parts=${parts.length + extras.length} size=${(totalKb / 1024).toFixed(1)}MB`);
+
+const index = [...parts, ...extras].map(({ id, name, system }) => ({ id, name, system }));
 fs.writeFileSync(path.join(outDir, 'parts.json'), JSON.stringify(index));
 console.log(`parts.json: ${index.length} parts`);

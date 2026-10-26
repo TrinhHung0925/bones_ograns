@@ -46,7 +46,9 @@ controls.maxDistance = 8;
 controls.zoomToCursor = true;
 controls.zoomSpeed = 1.15;
 
-const HOME = { target: new THREE.Vector3(0, 0, 0), position: new THREE.Vector3(0, 0.05, 3.4) };
+// Far enough that the whole body sits comfortably between the floating
+// header and bottom panels of the full-screen layouts.
+const HOME = { target: new THREE.Vector3(0, 0, 0), position: new THREE.Vector3(0, 0.05, 5.8) };
 camera.position.copy(HOME.position);
 controls.target.copy(HOME.target);
 
@@ -98,7 +100,7 @@ function loadSystem(system) {
   entry = { group: null, visible: true, loading: null };
   systems.set(system, entry);
   post({ type: 'systemLoading', system });
-  entry.loading = loader.loadAsync(`../anatomy/models/${system}.glb`).then((gltf) => {
+  entry.loading = loader.loadAsync(`../anatomy/models/${system}.glb`).then(async (gltf) => {
     const group = gltf.scene;
     group.name = system;
     group.traverse((obj) => {
@@ -118,7 +120,15 @@ function loadSystem(system) {
     entry.group = group;
     scene.add(group);
     pipeline.shadow.markDirty();
+    // Build the shaders and get a frame on screen before reporting "loaded",
+    // so Flutter's loading screen never gives way to an empty stage.
+    try {
+      await renderer.compileAsync(scene, camera);
+    } catch (_) {
+      // Older WebGL without parallel compile: the first frame compiles instead.
+    }
     requestRender();
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     post({ type: 'systemLoaded', system });
   }).catch((err) => {
     systems.delete(system);
@@ -395,7 +405,7 @@ function fitSpheres(items, basis, duration = 700) {
     .addScaledVector(basis.up, (minY + maxY) / 2);
   const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
   const tanH = tanV * camera.aspect;
-  const distance = Math.max((maxX - minX) / 2 / tanH, (maxY - minY) / 2 / tanV) * 1.06 + maxZ;
+  const distance = Math.max((maxX - minX) / 2 / tanH, (maxY - minY) / 2 / tanV) * 1.2 + maxZ;
   animateCamera(center, center.clone().addScaledVector(basis.back, distance), duration);
 }
 
@@ -1134,6 +1144,12 @@ const commands = {
   },
   resetCamera() {
     animateCamera(HOME.target.clone(), HOME.position.clone());
+  },
+  /** One-finger / left-button drag: 'rotate' (default) or 'pan' like a photo. */
+  setDragMode(mode) {
+    const pan = mode === 'pan';
+    controls.touches.ONE = pan ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
+    controls.mouseButtons.LEFT = pan ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
   },
   /** Moves the camera toward (factor < 1) or away from the orbit target. */
   zoomBy(factor) {
