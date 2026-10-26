@@ -62,12 +62,4 @@ void main() {
     expect(formatClock(const Duration(minutes: 72, seconds: 1)), '72:01');
     expect(formatClock(const Duration(seconds: -5)), '00:00');
   });
-
-  test('levels unlock one after another', () {
-    expect(isAssemblyLevelUnlocked(0, const [0, 0, 0]), isTrue);
-    expect(isAssemblyLevelUnlocked(1, const [0, 0, 0]), isTrue);
-    expect(isAssemblyLevelUnlocked(2, const [0, 0, 0]), isFalse);
-    expect(isAssemblyLevelUnlocked(2, const [0, 1, 0]), isTrue);
-    expect(isAssemblyLevelUnlocked(3, const [3, 3, 0, 0]), isFalse);
-  });
 }

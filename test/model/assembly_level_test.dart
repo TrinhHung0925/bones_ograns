@@ -13,38 +13,55 @@ void main() {
 
   AssemblyLevel level(String id) => AssemblyLevel.all.firstWhere((l) => l.id == id);
 
-  test('every level resolves to a playable set of pieces', () {
+  /// Every way each level can be played: (level, detail or null).
+  Iterable<(AssemblyLevel, AssemblyDetail?)> plays() sync* {
     for (final level in AssemblyLevel.all) {
-      final pieces = level.resolve(anatomy.parts);
-      expect(pieces.length, greaterThanOrEqualTo(3), reason: level.id);
+      if (level.details.isEmpty) {
+        yield (level, null);
+      } else {
+        for (final detail in level.details) {
+          yield (level, detail);
+        }
+      }
+    }
+  }
+
+  test('every level at every detail resolves to a playable set of pieces', () {
+    for (final (level, detail) in plays()) {
+      final key = '${level.id}@${detail?.name}';
+      final pieces = level.resolve(anatomy.parts, detail: detail);
+      expect(pieces.length, greaterThanOrEqualTo(3), reason: key);
       // Big levels stay manageable on a phone.
-      expect(pieces.length, lessThanOrEqualTo(36), reason: level.id);
-      expect(pieces.map((p) => p.id).toSet().length, pieces.length, reason: level.id);
+      expect(pieces.length, lessThanOrEqualTo(detail == AssemblyDetail.fine ? 64 : 40), reason: key);
+      expect(pieces.map((p) => p.id).toSet().length, pieces.length, reason: key);
       final partIds = [for (final piece in pieces) ...piece.parts.map((p) => p.id)];
-      expect(partIds.toSet().length, partIds.length, reason: '${level.id}: a part is in two pieces');
+      expect(partIds.toSet().length, partIds.length, reason: '$key: a part is in two pieces');
       for (final piece in pieces) {
-        expect(piece.parts, isNotEmpty, reason: '${level.id}: ${piece.id}');
-        expect(piece.nameVi, isNotEmpty, reason: '${level.id}: ${piece.id}');
+        expect(piece.parts, isNotEmpty, reason: '$key: ${piece.id}');
+        expect(piece.nameVi, isNotEmpty, reason: '$key: ${piece.id}');
         for (final part in piece.parts) {
-          expect(level.systems, contains(part.system), reason: '${level.id}: ${part.name}');
+          expect(level.systems, contains(part.system), reason: '$key: ${part.name}');
         }
       }
     }
   });
 
-  test('every group of every level matches some parts', () {
-    for (final level in AssemblyLevel.all) {
-      final ids = level.resolve(anatomy.parts).map((p) => p.id).toSet();
-      for (final group in level.groups) {
-        expect(ids, contains(group.id), reason: '${level.id}: empty group ${group.id}');
+  test('every group of every level and detail matches some parts', () {
+    for (final (level, detail) in plays()) {
+      final ids = level.resolve(anatomy.parts, detail: detail).map((p) => p.id).toSet();
+      final groups = detail == null ? level.groups : level.variants[detail]!;
+      for (final group in groups) {
+        expect(ids, contains(group.id), reason: '${level.id}@${detail?.name}: empty group ${group.id}');
       }
     }
   });
 
   test('group ids never collide with part ids', () {
     for (final level in AssemblyLevel.all) {
-      for (final group in level.groups) {
-        expect(anatomy.byId(group.id), isNull, reason: group.id);
+      for (final groups in level.allGroupings) {
+        for (final group in groups) {
+          expect(anatomy.byId(group.id), isNull, reason: group.id);
+        }
       }
     }
   });
@@ -66,22 +83,70 @@ void main() {
     }
   });
 
-  test('the full skeleton level covers every skeletal part', () {
-    // Intentionally excluded skeletal parts (none at the moment).
-    const excluded = <String>{};
-    final pieces = level('full_skeleton').resolve(anatomy.parts);
-    final covered = {for (final piece in pieces) ...piece.parts.map((p) => p.name)};
-    final missing = [
-      for (final part in anatomy.inSystem(BodySystem.skeletal))
-        if (!covered.contains(part.name) && !excluded.contains(part.name)) part.name,
-    ];
-    expect(missing, isEmpty);
-    expect(pieces.length, inInclusiveRange(25, 35));
-    expect(pieces.every((p) => p.isGroup), isTrue);
+  test('the full skeleton level covers every skeletal part at every detail', () {
+    final skeleton = level('full_skeleton');
+    expect(skeleton.details, AssemblyDetail.values);
+    const expectedCounts = {
+      AssemblyDetail.coarse: (8, 8),
+      AssemblyDetail.medium: (25, 35),
+      AssemblyDetail.fine: (45, 64),
+    };
+    for (final detail in skeleton.details) {
+      final pieces = skeleton.resolve(anatomy.parts, detail: detail);
+      final covered = {for (final piece in pieces) ...piece.parts.map((p) => p.id)};
+      final missing = [
+        for (final part in anatomy.inSystem(BodySystem.skeletal))
+          if (!covered.contains(part.id)) part.name,
+      ];
+      expect(missing, isEmpty, reason: detail.name);
+      final (min, max) = expectedCounts[detail]!;
+      expect(pieces.length, inInclusiveRange(min, max), reason: detail.name);
+    }
+    // The big-block cut has whole arms and legs, hands and feet included.
+    final coarse = skeleton.resolve(anatomy.parts, detail: AssemblyDetail.coarse);
+    final rightArm = coarse.firstWhere((p) => p.id == 'g_arm_right');
+    expect(rightArm.parts.map((p) => p.name), containsAll(['Right humerus', 'Right scaphoid', 'Right clavicle']));
+  });
+
+  test('whole-limb levels offer three details, coarse being the four big blocks', () {
+    for (final id in ['whole_arm_right', 'whole_arm_left', 'whole_leg_right', 'whole_leg_left']) {
+      final limb = level(id);
+      expect(limb.details, AssemblyDetail.values, reason: id);
+      expect(limb.resolve(anatomy.parts, detail: AssemblyDetail.coarse), hasLength(4), reason: id);
+      final medium = limb.resolve(anatomy.parts, detail: AssemblyDetail.medium).length;
+      final fine = limb.resolve(anatomy.parts, detail: AssemblyDetail.fine).length;
+      expect(medium, inInclusiveRange(10, 14), reason: id);
+      expect(fine, greaterThan(medium), reason: id);
+      // Every detail covers the same bones.
+      Set<String> partsAt(AssemblyDetail d) => {
+        for (final piece in limb.resolve(anatomy.parts, detail: d)) ...piece.parts.map((p) => p.id),
+      };
+      expect(partsAt(AssemblyDetail.coarse), partsAt(AssemblyDetail.fine), reason: id);
+      expect(partsAt(AssemblyDetail.medium), partsAt(AssemblyDetail.fine), reason: id);
+    }
+  });
+
+  test('progress keys: the default detail keeps the plain level id', () {
+    final arm = level('whole_arm_right');
+    expect(arm.defaultDetail, AssemblyDetail.medium);
+    expect(arm.progressId(null), 'whole_arm_right');
+    expect(arm.progressId(AssemblyDetail.medium), 'whole_arm_right');
+    expect(arm.progressId(AssemblyDetail.coarse), 'whole_arm_right@coarse');
+    expect(level('skull').progressId(null), 'skull');
+    expect(AssemblySelection(arm, AssemblyDetail.fine).progressId, 'whole_arm_right@fine');
   });
 
   test('the full body level mixes the skeleton with the main organs', () {
-    final pieces = level('full_body').resolve(anatomy.parts);
+    for (final detail in level('full_body').details) {
+      final pieces = level('full_body').resolve(anatomy.parts, detail: detail);
+      final skeletal = {
+        for (final piece in pieces)
+          for (final part in piece.parts)
+            if (part.system == BodySystem.skeletal) part.id,
+      };
+      expect(skeletal.length, anatomy.countIn(BodySystem.skeletal), reason: detail.name);
+    }
+    final pieces = level('full_body').resolve(anatomy.parts, detail: AssemblyDetail.coarse);
     final ids = pieces.map((p) => p.id).toSet();
     expect(ids, containsAll(['g_head', 'g_spine', 'g_rib_cage', 'g_heart', 'g_liver', 'g_brain', 'g_airway']));
     final systems = {for (final p in pieces) p.system};

@@ -42,6 +42,9 @@ controls.dampingFactor = 0.12;
 controls.screenSpacePanning = true;
 controls.minDistance = 0.08;
 controls.maxDistance = 8;
+// Pinch and wheel zoom toward the fingers/cursor, like zooming a photo.
+controls.zoomToCursor = true;
+controls.zoomSpeed = 1.15;
 
 const HOME = { target: new THREE.Vector3(0, 0, 0), position: new THREE.Vector3(0, 0.05, 3.4) };
 camera.position.copy(HOME.position);
@@ -1131,6 +1134,15 @@ const commands = {
   },
   resetCamera() {
     animateCamera(HOME.target.clone(), HOME.position.clone());
+  },
+  /** Moves the camera toward (factor < 1) or away from the orbit target. */
+  zoomBy(factor) {
+    // Start from where a running tween ends, so quick repeated taps compound.
+    const target = (tween ? tween.target : controls.target).clone();
+    const offset = (tween ? tween.position : camera.position).clone().sub(target);
+    const distance = THREE.MathUtils.clamp(offset.length() * factor, controls.minDistance, controls.maxDistance);
+    offset.setLength(distance);
+    animateCamera(target, target.clone().add(offset), 260);
   },
   flash(id, color, ms = 900) {
     const part = parts.get(id);

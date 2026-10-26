@@ -23,11 +23,13 @@ abstract class AppText {
   static const String search = 'Tìm kiếm';
   static const String quiz = 'Đố vui vị trí';
   static const String quizShort = 'Đố vui';
-  static const String assembly = 'Ghép xương 3D';
+  static const String assembly = 'Ghép cơ thể 3D';
   static const String info = 'Thông tin';
   static const String live3d = '3D';
   static const String bodySystems = 'Hệ cơ quan';
   static const String resetCamera = 'Về góc nhìn ban đầu';
+  static const String zoomInTooltip = 'Phóng to';
+  static const String zoomOutTooltip = 'Thu nhỏ';
   static const String showAll = 'Hiện tất cả';
   static const String viewerHint = 'Chạm để chọn · chạm đúp để phóng to';
   static const String zoomIn = 'Phóng to';
@@ -78,12 +80,16 @@ abstract class AppText {
   static const String openSourceLicenses = 'Giấy phép phần mềm mã nguồn mở';
 
   // Assembly game
-  static const String assemblyLevelsTitle = 'Ghép xương 3D';
+  static const String assemblyLevelsTitle = 'Ghép cơ thể 3D';
   static const String assemblyLevelsSubtitle = 'Ghép các mảnh về đúng vị trí';
   static const String assemblyPickLevel = 'Chọn màn chơi';
-  static const String assemblyLocked = 'Đạt 1 sao ở màn trước để mở khóa';
   static const String assemblyNotPlayed = 'Chưa chơi';
   static String assemblyPieces(int count) => '$count mảnh';
+  static String assemblyPiecesRange(int min, int max) => min == max ? '$min mảnh' : '$min–$max mảnh';
+  static String assemblyDetailCount(int count) => '$count mức';
+  static const String assemblyPickDetail = 'Chọn độ chi tiết';
+  static const String assemblyPickDetailHint = 'Cùng một vùng, chia thành mảnh to hay nhỏ tùy bạn';
+  static const String assemblyRecommended = 'Đề xuất';
   static String assemblyStarTotal(int stars, int max) => '$stars/$max';
   static const String assemblyDragHint = 'Kéo từng mảnh vào đúng bóng mờ của nó';
   static const String assemblyHint = 'Gợi ý';
@@ -105,7 +111,6 @@ abstract class AppText {
   static const String assemblyMaxCombo = 'Combo';
   static const String assemblyTimeBonus = 'Thưởng thời gian';
   static const String assemblyHelp = 'Hướng dẫn';
-  static const String assemblyChapterLocked = 'Hoàn thành màn trước để mở';
   static String assemblyChapterStars(int stars, int max) => '$stars/$max';
   static const String assemblyIntroTapHint = 'Chạm để bắt đầu';
   static const String assemblyIntroBest = 'Kỷ lục';

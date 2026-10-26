@@ -33,7 +33,13 @@ class AssemblyController extends GetxController {
   final viewer = ViewerBridge();
   late final StreamSubscription<ViewerEvent> _sub;
   late final StreamSubscription<AssemblyEvent> _gameSub;
-  late AssemblyLevel level;
+
+  /// Level and detail being played (the route argument).
+  late AssemblySelection selection;
+
+  AssemblyLevel get level => selection.level;
+
+  AssemblyDetail? get detail => selection.detail;
 
   List<AssemblyPiece> pieces = const [];
   Map<String, AssemblyPiece> _pieceById = const {};
@@ -76,16 +82,16 @@ class AssemblyController extends GetxController {
   /// added at the end).
   int get score => assemblyScore(placed: placed, comboBonus: comboBonus, mistakes: mistakes, hints: hints);
 
-  int get bestStars => _local.assemblyStars(level.id);
+  int get bestStars => _local.assemblyStars(selection.progressId);
 
-  int? get bestSeconds => _local.assemblyBestSeconds(level.id);
+  int? get bestSeconds => _local.assemblyBestSeconds(selection.progressId);
 
-  int? get bestScore => _local.assemblyBestScore(level.id);
+  int? get bestScore => _local.assemblyBestScore(selection.progressId);
 
   @override
   void onInit() {
     super.onInit();
-    level = Get.arguments as AssemblyLevel? ?? AssemblyLevel.all.first;
+    selection = Get.arguments as AssemblySelection? ?? AssemblySelection(AssemblyLevel.all.first);
     showTutorial = !_local.assemblyTutorialSeen;
     _sub = viewer.events.listen(_onEvent);
     _gameSub = viewer.assemblyEvents.listen(_onGameEvent);
@@ -108,7 +114,7 @@ class AssemblyController extends GetxController {
   }
 
   void _start() {
-    pieces = level.resolve(_anatomy.parts);
+    pieces = level.resolve(_anatomy.parts, detail: detail);
     _pieceById = {for (final p in pieces) p.id: p};
     loading = true;
     finished = false;
@@ -285,7 +291,12 @@ class AssemblyController extends GetxController {
       hints: hints,
     );
     final previousBest = bestScore;
-    final isRecord = await _local.saveAssemblyResult(level.id, stars: stars, seconds: time.inSeconds, score: total);
+    final isRecord = await _local.saveAssemblyResult(
+      selection.progressId,
+      stars: stars,
+      seconds: time.inSeconds,
+      score: total,
+    );
     // Let the celebration in the viewer play before the dialog covers it.
     final shown = Completer<void>();
     _resultDelay = Timer(const Duration(milliseconds: 1600), shown.complete);
@@ -307,7 +318,7 @@ class AssemblyController extends GetxController {
     if (isClosed) return;
     switch (action) {
       case AssemblyResultAction.next when next != null:
-        level = next;
+        selection = AssemblySelection(next, next.defaultDetail);
         _start();
       case AssemblyResultAction.replay:
         _start();

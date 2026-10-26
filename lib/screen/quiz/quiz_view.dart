@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
+import '../../common/zoom_buttons.dart';
 import '../../common/anatomy_viewer/anatomy_viewer.dart';
 import '../../common/game_widgets.dart';
 import '../../common/loading_chip.dart';
@@ -71,6 +72,11 @@ class _QuizViewState extends State<QuizView> {
                     fit: StackFit.expand,
                     children: [
                       Positioned.fill(child: AnatomyViewer(bridge: controller.viewer)),
+                      Positioned(
+                        right: 12.w,
+                        bottom: 12.h,
+                        child: ZoomButtons(bridge: controller.viewer),
+                      ),
                       Positioned(
                         top: 12.h,
                         left: 0,

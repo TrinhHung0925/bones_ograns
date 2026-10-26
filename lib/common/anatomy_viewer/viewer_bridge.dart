@@ -186,6 +186,11 @@ class ViewerBridge {
 
   void resetCamera() => _call('resetCamera');
 
+  /// Button zoom, for when pinching is awkward (simulator, one hand).
+  void zoomIn() => _call('zoomBy', [0.7]);
+
+  void zoomOut() => _call('zoomBy', [1.43]);
+
   void flash(String partId, Color color, {Duration duration = const Duration(milliseconds: 900)}) {
     final hex = '#${(color.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
     _call('flash', [partId, hex, duration.inMilliseconds]);

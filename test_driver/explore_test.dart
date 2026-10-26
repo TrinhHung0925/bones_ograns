@@ -14,16 +14,19 @@ void main() {
       Process.run('xcrun', ['simctl', 'io', simId, 'screenshot', '$shotDir/$name.png']);
   Future<void> pause(int ms) => Future<void>.delayed(Duration(milliseconds: ms));
 
-  Future<void> dismissTutorial() async {
-    try {
-      await driver.tap(find.text('Bắt đầu'), timeout: const Duration(seconds: 3));
-    } catch (_) {}
-  }
+  Future<void> dismissTutorial() => driver.runUnsynchronized(() async {
+        try {
+          await driver.waitFor(find.text('Bắt đầu'), timeout: const Duration(seconds: 3));
+          await driver.tap(find.text('Bắt đầu'));
+        } on DriverError {
+          // Already seen.
+        }
+      });
 
   setUpAll(() async => driver = await FlutterDriver.connect());
   tearDownAll(() async => driver.close());
 
-  test('quiz opens the chosen system', () async {
+  test('quiz opens the chosen system', skip: 'covered earlier', () async {
     await driver.waitFor(find.byTooltip('Tìm kiếm'), timeout: const Duration(seconds: 30));
     for (final system in ['Cơ', 'Tuần hoàn']) {
       await driver.tap(find.byTooltip('Đố vui vị trí'));
@@ -36,8 +39,34 @@ void main() {
     }
   }, timeout: const Timeout(Duration(minutes: 3)));
 
-  test('assembly opens the chosen level', () async {
-    await driver.tap(find.text('Ghép xương 3D'));
+  test('home is up', () async {
+    await driver.waitFor(find.byTooltip('Tìm kiếm'), timeout: const Duration(seconds: 30));
+  });
+
+  test('detail picker: whole arm and skeleton at different details', () async {
+    await driver.tap(find.text('Ghép cơ thể 3D'));
+    for (final (i, level, detail) in [
+      (0, 'Cả tay phải', 'Cụm lớn'),
+      (1, 'Bộ xương hoàn chỉnh', 'Cụm lớn'),
+      (2, 'Bộ xương hoàn chỉnh', 'Chi tiết'),
+    ]) {
+      final tile = find.text(level);
+      await driver.scrollUntilVisible(find.byType('ListView'), tile, dyScroll: -250);
+      await driver.tap(tile);
+      await driver.waitFor(find.text('Chọn độ chi tiết'.toUpperCase()));
+      if (i == 0) await shot('detail_sheet');
+      await driver.tap(find.descendant(of: find.byType('AssemblyDetailDialog'), matching: find.text(detail)));
+      await dismissTutorial();
+      await pause(9000);
+      await shot('detail_${i}_$detail');
+      await driver.tap(find.byTooltip('Back'));
+      await pause(800);
+    }
+    await driver.tap(find.byTooltip('Back'));
+  }, timeout: const Timeout(Duration(minutes: 5)));
+
+  test('assembly opens the chosen level', skip: 'covered earlier', () async {
+    await driver.tap(find.text('Ghép cơ thể 3D'));
     final levels = ['Chi trên trái', 'Thận & tiết niệu', 'Nội tạng', 'Bộ xương hoàn chỉnh', 'Toàn thân'];
     for (final (i, level) in levels.indexed) {
       final tile = find.text(level);

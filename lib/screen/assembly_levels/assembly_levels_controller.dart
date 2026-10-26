@@ -1,10 +1,10 @@
 import 'package:get/get.dart';
 
+import '../../dialog/assembly_detail_dialog.dart';
 import '../../model/assembly_level.dart';
 import '../../route.dart';
 import '../../service/anatomy_service.dart';
 import '../../service/local_service.dart';
-import '../../utils/assembly_score.dart';
 
 /// Level map of the 3D assembly game: chapters of levels with saved stars,
 /// best times and scores.
@@ -14,15 +14,36 @@ class AssemblyLevelsController extends GetxController {
 
   final chapters = AssemblyLevel.chapters;
   final levels = AssemblyLevel.all;
-  late final Map<String, int> pieceCounts;
+
+  /// Piece count of every level at every detail it offers (null = only one).
+  late final Map<String, Map<AssemblyDetail?, int>> _pieceCounts;
 
   @override
   void onInit() {
     super.onInit();
-    pieceCounts = {for (final level in levels) level.id: level.resolve(_anatomy.parts).length};
+    _pieceCounts = {
+      for (final level in levels)
+        level.id: {
+          for (final detail in level.details.isEmpty ? const <AssemblyDetail?>[null] : level.details)
+            detail: level.resolve(_anatomy.parts, detail: detail).length,
+        },
+    };
   }
 
-  int stars(AssemblyLevel level) => _local.assemblyStars(level.id);
+  int piecesAt(AssemblyLevel level, AssemblyDetail? detail) => _pieceCounts[level.id]![detail] ?? 0;
+
+  /// Fewest and most pieces over the level's details.
+  (int, int) pieceRange(AssemblyLevel level) {
+    final counts = _pieceCounts[level.id]!.values;
+    return (counts.reduce((a, b) => a < b ? a : b), counts.reduce((a, b) => a > b ? a : b));
+  }
+
+  int starsAt(AssemblyLevel level, AssemblyDetail? detail) => _local.assemblyStars(level.progressId(detail));
+
+  /// Best stars of the level over all its details.
+  int stars(AssemblyLevel level) => level.details.isEmpty
+      ? starsAt(level, null)
+      : level.details.map((d) => starsAt(level, d)).reduce((a, b) => a > b ? a : b);
 
   int? bestSeconds(AssemblyLevel level) => _local.assemblyBestSeconds(level.id);
 
@@ -36,17 +57,16 @@ class AssemblyLevelsController extends GetxController {
 
   int chapterMaxStars(AssemblyChapter chapter) => chapter.levels.length * 3;
 
-  /// The first two levels of every chapter are open; the others need a star
-  /// on the level before them.
-  bool isUnlocked(AssemblyLevel level) {
-    final chapter = level.chapter;
-    return isAssemblyLevelUnlocked(chapter.levels.indexOf(level), chapter.levels.map(stars).toList());
-  }
-
+  /// Every level is playable; stars and records are goals, not gates. Levels
+  /// with several details ask which one first.
   Future<void> openLevel(AssemblyLevel level) async {
-    if (!isUnlocked(level)) return;
-    await Get.toNamed(AppPage.assembly.routeName, arguments: level);
-    // Stars and times may have changed, and with them the unlocked levels.
+    AssemblyDetail? detail;
+    if (level.details.length > 1) {
+      detail = await AssemblyDetailDialog.show(this, level);
+      if (detail == null) return;
+    }
+    await Get.toNamed(AppPage.assembly.routeName, arguments: AssemblySelection(level, detail));
+    // Stars, times and scores may have changed.
     update();
   }
 

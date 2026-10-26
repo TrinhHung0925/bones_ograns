@@ -72,11 +72,10 @@ class _AssemblyLevelsViewState extends State<AssemblyLevelsView> {
                           _LevelCard(
                             number: chapter.levels.indexOf(level) + 1,
                             level: level,
-                            pieces: controller.pieceCounts[level.id] ?? 0,
+                            pieces: controller.pieceRange(level),
                             stars: controller.stars(level),
                             bestSeconds: controller.bestSeconds(level),
                             bestScore: controller.bestScore(level),
-                            unlocked: controller.isUnlocked(level),
                             onTap: () => controller.openLevel(level),
                           ),
                           SizedBox(height: 12.h),
@@ -139,17 +138,17 @@ class _LevelCard extends StatelessWidget {
     required this.stars,
     required this.bestSeconds,
     required this.bestScore,
-    required this.unlocked,
     required this.onTap,
   });
 
   final int number;
   final AssemblyLevel level;
-  final int pieces;
+
+  /// Fewest and most pieces over the level's details.
+  final (int, int) pieces;
   final int stars;
   final int? bestSeconds;
   final int? bestScore;
-  final bool unlocked;
   final VoidCallback onTap;
 
   Color get _difficultyColor => switch (level.difficulty) {
@@ -162,15 +161,14 @@ class _LevelCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final card = GameButton(
-      onTap: unlocked ? onTap : null,
-      tooltip: unlocked ? null : AppText.assemblyLocked,
+      onTap: onTap,
       padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 14.h),
       child: Row(
         children: [
           Stack(
             clipBehavior: Clip.none,
             children: [
-              IconBubble(icon: level.icon, color: unlocked ? _difficultyColor : AppColors.textMuted, size: 52),
+              IconBubble(icon: level.icon, color: _difficultyColor, size: 52),
               Positioned(
                 left: -4.r,
                 top: -4.r,
@@ -195,41 +193,39 @@ class _LevelCard extends StatelessWidget {
                 SizedBox(height: 6.h),
                 Row(
                   children: [
-                    _Tag(text: AppText.assemblyPieces(pieces), color: AppColors.textSecondary),
+                    _Tag(text: AppText.assemblyPiecesRange(pieces.$1, pieces.$2), color: AppColors.textSecondary),
                     SizedBox(width: 6.w),
                     _Tag(text: level.difficulty.label, color: _difficultyColor),
+                    if (level.details.length > 1) ...[
+                      SizedBox(width: 6.w),
+                      _Tag(text: AppText.assemblyDetailCount(level.details.length), color: AppColors.endocrine),
+                    ],
                   ],
                 ),
               ],
             ),
           ),
           SizedBox(width: 8.w),
-          if (unlocked)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                StarRow(stars: stars, size: 20),
-                SizedBox(height: 4.h),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              StarRow(stars: stars, size: 20),
+              SizedBox(height: 4.h),
+              Text(
+                bestSeconds == null ? AppText.assemblyNotPlayed : formatClock(Duration(seconds: bestSeconds!)),
+                style: AppStyle.body(12, color: AppColors.textMuted, weight: FontWeight.w800),
+              ),
+              if (bestScore != null)
                 Text(
-                  bestSeconds == null ? AppText.assemblyNotPlayed : formatClock(Duration(seconds: bestSeconds!)),
-                  style: AppStyle.body(12, color: AppColors.textMuted, weight: FontWeight.w800),
+                  '${AppText.assemblyBestScore} $bestScore',
+                  style: AppStyle.body(11, color: AppColors.accent, weight: FontWeight.w800),
                 ),
-                if (bestScore != null)
-                  Text(
-                    '${AppText.assemblyBestScore} $bestScore',
-                    style: AppStyle.body(11, color: AppColors.accent, weight: FontWeight.w800),
-                  ),
-              ],
-            )
-          else
-            Icon(Icons.lock_rounded, size: 26.r, color: AppColors.textMuted),
+            ],
+          ),
         ],
       ),
     );
-    return Semantics(
-      label: level.title,
-      child: unlocked ? card : Opacity(opacity: 0.55, child: card),
-    );
+    return Semantics(label: level.title, child: card);
   }
 }
 

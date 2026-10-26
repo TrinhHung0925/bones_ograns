@@ -45,9 +45,3 @@ String formatClock(Duration duration) {
   final ss = (seconds % 60).toString().padLeft(2, '0');
   return '$mm:$ss';
 }
-
-/// Whether the level at [index] of its chapter is playable, given the best
-/// stars of every level of that chapter in order: the first two are open,
-/// the rest need a star on the one before.
-bool isAssemblyLevelUnlocked(int index, List<int> bestStars) =>
-    index < 2 || (index - 1 < bestStars.length && bestStars[index - 1] >= 1);

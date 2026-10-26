@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
+import '../../common/zoom_buttons.dart';
 import '../../common/anatomy_viewer/anatomy_viewer.dart';
 import '../../common/game_widgets.dart';
 import '../../common/loading_chip.dart';
@@ -129,6 +130,8 @@ class _Stage extends StatelessWidget {
           child: Obx(
             () => Column(
               children: [
+                ZoomButtons(bridge: controller.viewer),
+                SizedBox(height: 8.h),
                 GameIconButton(
                   icon: Icons.center_focus_strong_rounded,
                   tooltip: AppText.resetCamera,

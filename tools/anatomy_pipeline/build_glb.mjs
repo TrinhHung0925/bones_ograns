@@ -24,17 +24,17 @@ const toApp = (x, y, z) => [
 // Fraction of triangles kept per system; small parts keep more via the error bound.
 const SIMPLIFY_RATIO = {
   skeletal: 0.4,
-  muscular: 0.22,
+  muscular: 0.15,
   cardiovascular: 0.15,
   nervous: 0.15,
   default: 0.2,
 };
 
-// Max simplification error (relative to each part's size). Bones and muscles
-// fill the screen most often, so they keep finer surface detail.
+// Max simplification error (relative to each part's size). The skeleton
+// is what players zoom into most, so it keeps finer surface detail (muscles
+// get theirs from procedural fibres in the viewer instead).
 const SIMPLIFY_ERROR = {
   skeletal: 0.0008,
-  muscular: 0.0012,
   default: 0.002,
 };
 

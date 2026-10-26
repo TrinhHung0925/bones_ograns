@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
+import '../../common/zoom_buttons.dart';
 import '../../common/anatomy_viewer/anatomy_viewer.dart';
 import '../../common/assembly_tutorial.dart';
 import '../../common/game_widgets.dart';
@@ -50,9 +51,11 @@ class _AssemblyViewState extends State<AssemblyView> {
                 GetBuilder<AssemblyController>(
                   builder: (controller) => GameHeader(
                     title: controller.level.title,
-                    subtitle:
-                        '${controller.level.difficulty.label} · '
-                        '${AppText.assemblyPieces(controller.pieces.length)}',
+                    subtitle: [
+                      controller.level.difficulty.label,
+                      if (controller.detail != null) controller.detail!.label,
+                      AppText.assemblyPieces(controller.pieces.length),
+                    ].join(' · '),
                     onBack: controller.onBack,
                     actions: [
                       GameIconButton(
@@ -213,6 +216,11 @@ class _Stage extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         Positioned.fill(child: AnatomyViewer(bridge: controller.viewer)),
+        Positioned(
+          right: 12.w,
+          bottom: 12.h,
+          child: ZoomButtons(bridge: controller.viewer),
+        ),
         GetBuilder<AssemblyController>(
           builder: (controller) => controller.loading && !controller.showIntro
               ? Positioned(
@@ -255,7 +263,7 @@ class _Stage extends StatelessWidget {
               child: ScaleTransition(scale: Tween(begin: 0.9, end: 1.0).animate(animation), child: child),
             ),
             child: controller.showIntro
-                ? _IntroCard(key: ValueKey(controller.level.id), controller: controller)
+                ? _IntroCard(key: ValueKey(controller.selection.progressId), controller: controller)
                 : const SizedBox.shrink(),
           ),
         ),
@@ -352,6 +360,7 @@ class _IntroCard extends StatelessWidget {
                         text: AppText.assemblyPieces(controller.pieces.length),
                       ),
                       StatPill(text: level.difficulty.label, dotColor: _difficultyColor),
+                      if (controller.detail != null) StatPill(icon: Icons.tune_rounded, text: controller.detail!.label),
                     ],
                   ),
                   SizedBox(height: 12.h),

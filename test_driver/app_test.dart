@@ -81,10 +81,13 @@ void main() {
     await driver.tap(find.text('Cao'));
     // "Xem lại hướng dẫn" closes the sheet and opens the tutorial.
     await driver.tap(find.text('Xem lại hướng dẫn'));
-    await driver.waitFor(find.text('Bắt đầu'));
-    await shot('8b_tutorial');
-    await driver.tap(find.text('Bắt đầu'));
-    await driver.waitForAbsent(find.text('Bắt đầu'));
+    // The tutorial's hand animation loops, so frame-synced commands would wait forever.
+    await driver.runUnsynchronized(() async {
+      await driver.waitFor(find.text('Bắt đầu'));
+      await shot('8b_tutorial');
+      await driver.tap(find.text('Bắt đầu'));
+      await driver.waitForAbsent(find.text('Bắt đầu'));
+    });
     await driver.waitFor(find.byTooltip('Tìm kiếm'));
   });
 
@@ -104,18 +107,21 @@ void main() {
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('assembly game opens a level and scatters the pieces', () async {
-    await driver.tap(find.text('Ghép xương 3D'));
+    await driver.tap(find.text('Ghép cơ thể 3D'));
     await driver.waitFor(find.text('Chi trên phải'));
     await shot('10_levels');
     await driver.tap(find.text('Chi trên phải'));
-    // The how-to-play overlay shows on the first game only.
-    try {
-      await driver.waitFor(find.text('Bắt đầu'), timeout: const Duration(seconds: 3));
-      await shot('11a_tutorial');
-      await driver.tap(find.text('Bắt đầu'));
-    } on DriverError {
-      // Already seen on an earlier run.
-    }
+    // The how-to-play overlay shows on the first game only; its hand
+    // animation loops, so frame-synced commands would wait forever.
+    await driver.runUnsynchronized(() async {
+      try {
+        await driver.waitFor(find.text('Bắt đầu'), timeout: const Duration(seconds: 3));
+        await shot('11a_tutorial');
+        await driver.tap(find.text('Bắt đầu'));
+      } on DriverError {
+        // Already seen on an earlier run.
+      }
+    });
     await driver.waitFor(find.text('Gợi ý'), timeout: const Duration(seconds: 30));
     await pause(4000);
     await shot('11_assembly');
